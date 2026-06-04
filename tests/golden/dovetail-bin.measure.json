@@ -1,0 +1,9 @@
+{
+  "description": "Golden measurement for examples/dovetail-bin/dovetail-bin.scad, produced by Demiurge's measure tool against OpenSCAD. Regenerate by running the measure tool and updating these values if the example geometry intentionally changes.",
+  "bounding_box_size": [40.0, 30.0, 20.0],
+  "volume_mm3": 6900.0,
+  "watertight": true,
+  "triangle_count": 44,
+  "vertex_count": 24,
+  "center_of_mass": [20.0, 14.4904, 7.5217]
+}

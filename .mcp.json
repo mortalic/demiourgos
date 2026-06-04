@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "demiurge": {
+      "command": "demiurge",
+      "args": [],
+      "env": {}
+    }
+  }
+}
