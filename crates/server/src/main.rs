@@ -23,8 +23,47 @@ use crate::config::Config;
 use crate::server::Demiourgos;
 use crate::workspace::Workspace;
 
+/// Package version, baked in at compile time.
+const VERSION: &str = env!("CARGO_PKG_VERSION");
+
+/// Handle `--version`/`--help` before doing anything else, printing to stdout
+/// and exiting. These are the only CLI flags; normally the process just speaks
+/// MCP over stdio.
+fn handle_cli_flags() {
+    for arg in std::env::args().skip(1) {
+        match arg.as_str() {
+            "-V" | "--version" => {
+                println!("demiourgos {VERSION}");
+                std::process::exit(0);
+            }
+            "-h" | "--help" => {
+                println!(
+                    "demiourgos {VERSION}\n\
+                     An MCP server (stdio) that gives an AI assistant eyes, a compiler,\n\
+                     and a tape measure for OpenSCAD.\n\n\
+                     USAGE:\n    \
+                     demiourgos            Start the MCP server on stdio (normal use)\n    \
+                     demiourgos --version  Print version and exit\n    \
+                     demiourgos --help     Print this help and exit\n\n\
+                     ENVIRONMENT:\n    \
+                     DEMIOURGOS_WORKSPACE        Workspace directory (default ./workspace)\n    \
+                     OPENSCAD_BINARY             Path to the openscad binary (default: PATH)\n    \
+                     DEMIOURGOS_RENDER_TIMEOUT   Render timeout, seconds (default 60)\n    \
+                     DEMIOURGOS_EXPORT_TIMEOUT   Export timeout, seconds (default 120)\n    \
+                     DEMIOURGOS_CHECK_TIMEOUT    compile_check timeout, seconds (default 30)\n    \
+                     DEMIOURGOS_LOG              tracing log filter (default info; logs to stderr)"
+                );
+                std::process::exit(0);
+            }
+            _ => {}
+        }
+    }
+}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    handle_cli_flags();
+
     // Logs go to stderr only — stdout is the MCP transport.
     tracing_subscriber::fmt()
         .with_writer(std::io::stderr)
