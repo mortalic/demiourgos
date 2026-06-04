@@ -1,6 +1,6 @@
 // dovetail-bin — a small parametric open-top tray with a dovetail mounting key.
 //
-// Used by Demiurge's docs and integration tests. The outer envelope is a clean
+// Used by Demiourgos's docs and integration tests. The outer envelope is a clean
 // `width × depth × height` box so its bounding box is easy to assert; the
 // dovetail key is carved as a slot so it does not change the outer dimensions.
 

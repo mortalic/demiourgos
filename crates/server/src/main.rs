@@ -1,4 +1,4 @@
-//! Demiurge — an MCP server that gives an AI assistant eyes (render), a compiler
+//! Demiourgos — an MCP server that gives an AI assistant eyes (render), a compiler
 //! (compile_check), and a tape measure (measure, fit_check) for OpenSCAD.
 //!
 //! Transport is stdio: stdout carries the JSON-RPC MCP stream, so **all** human
@@ -14,13 +14,13 @@ mod server;
 mod workspace;
 
 use anyhow::Context;
-use demiurge_scad::OpenScad;
+use demiourgos_scad::OpenScad;
 use rmcp::transport::stdio;
 use rmcp::ServiceExt;
 use tracing_subscriber::EnvFilter;
 
 use crate::config::Config;
-use crate::server::Demiurge;
+use crate::server::Demiourgos;
 use crate::workspace::Workspace;
 
 #[tokio::main]
@@ -29,13 +29,13 @@ async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt()
         .with_writer(std::io::stderr)
         .with_env_filter(
-            EnvFilter::try_from_env("DEMIURGE_LOG").unwrap_or_else(|_| EnvFilter::new("info")),
+            EnvFilter::try_from_env("DEMIOURGOS_LOG").unwrap_or_else(|_| EnvFilter::new("info")),
         )
         .with_ansi(false)
         .init();
 
     let config = Config::from_env();
-    tracing::info!(workspace = %config.workspace_root.display(), "starting Demiurge");
+    tracing::info!(workspace = %config.workspace_root.display(), "starting Demiourgos");
 
     let workspace = Workspace::open(&config.workspace_root).with_context(|| {
         format!(
@@ -57,12 +57,12 @@ async fn main() -> anyhow::Result<()> {
         }
     };
 
-    let service = Demiurge::new(config, workspace, openscad)
+    let service = Demiourgos::new(config, workspace, openscad)
         .serve(stdio())
         .await
         .context("failed to start MCP service over stdio")?;
 
-    tracing::info!("Demiurge MCP server ready");
+    tracing::info!("Demiourgos MCP server ready");
     service.waiting().await.context("MCP service error")?;
     Ok(())
 }

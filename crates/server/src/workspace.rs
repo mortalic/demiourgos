@@ -170,7 +170,7 @@ mod tests {
 
     #[test]
     fn read_write_list_roundtrip() {
-        let tmp = std::env::temp_dir().join(format!("demiurge-ws-test-{}", std::process::id()));
+        let tmp = std::env::temp_dir().join(format!("demiourgos-ws-test-{}", std::process::id()));
         let ws = Workspace::open(&tmp).unwrap();
         let name = Workspace::validate_name("cube").unwrap();
         ws.write_model(&name, "cube(10);").unwrap();

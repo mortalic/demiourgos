@@ -1,7 +1,7 @@
-//! `demiurge-scad` — a thin, async wrapper around the OpenSCAD command-line
+//! `demiourgos-scad` — a thin, async wrapper around the OpenSCAD command-line
 //! binary.
 //!
-//! It provides three things Demiurge needs:
+//! It provides three things Demiourgos needs:
 //!
 //! - [`OpenScad`] — discovery of the `openscad` binary (honoring the
 //!   `OPENSCAD_BINARY` env var), version probing, and library detection, plus

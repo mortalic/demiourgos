@@ -1,6 +1,6 @@
 [package]
-name = "demiurge-mesh"
-description = "STL parsing and geometric analysis (bbox, volume, center of mass, watertightness) for Demiurge."
+name = "demiourgos-mesh"
+description = "STL parsing and geometric analysis (bbox, volume, center of mass, watertightness) for Demiourgos."
 version.workspace = true
 edition.workspace = true
 license.workspace = true

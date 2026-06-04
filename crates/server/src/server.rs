@@ -1,10 +1,10 @@
-//! The Demiurge MCP server: state and the full tool surface.
+//! The Demiourgos MCP server: state and the full tool surface.
 
 use std::collections::BTreeMap;
 use std::path::Path;
 
-use demiurge_mesh::Mesh;
-use demiurge_scad::{Define, ExportFormat, OpenScad, RenderOptions, RunOutput, View};
+use demiourgos_mesh::Mesh;
+use demiourgos_scad::{Define, ExportFormat, OpenScad, RenderOptions, RunOutput, View};
 use rmcp::handler::server::wrapper::Parameters;
 use rmcp::model::{
     CallToolResult, Implementation, ProtocolVersion, ServerCapabilities, ServerInfo,
@@ -25,9 +25,9 @@ use crate::workspace::{ModelName, Workspace};
 /// Server version, surfaced by `health`.
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
-/// The Demiurge server state.
+/// The Demiourgos server state.
 #[derive(Clone)]
-pub struct Demiurge {
+pub struct Demiourgos {
     config: Config,
     workspace: Workspace,
     /// `None` when OpenSCAD could not be discovered at startup; `health` still
@@ -36,18 +36,18 @@ pub struct Demiurge {
     openscad_error: Option<String>,
 }
 
-impl Demiurge {
+impl Demiourgos {
     /// Build the server from resolved config and an OpenSCAD discovery result.
     pub fn new(
         config: Config,
         workspace: Workspace,
         openscad: Result<OpenScad, String>,
-    ) -> Demiurge {
+    ) -> Demiourgos {
         let (openscad, openscad_error) = match openscad {
             Ok(s) => (Some(s), None),
             Err(e) => (None, Some(e)),
         };
-        Demiurge {
+        Demiourgos {
             config,
             workspace,
             openscad,
@@ -284,7 +284,7 @@ pub struct FitCheckArgs {
 // ===========================================================================
 
 #[tool_router]
-impl Demiurge {
+impl Demiourgos {
     #[tool(
         description = "Report server version, the resolved OpenSCAD binary path and version, the \
                        workspace path, and whether the BOSL2 library is available."
@@ -305,7 +305,7 @@ impl Demiurge {
             .unwrap_or(false);
 
         let payload = json!({
-            "demiurge_version": VERSION,
+            "demiourgos_version": VERSION,
             "openscad_available": scad_ok,
             "openscad_binary": binary,
             "openscad_version": scad_version,
@@ -321,13 +321,13 @@ impl Demiurge {
         });
         let summary = if scad_ok {
             format!(
-                "Demiurge {VERSION} — OpenSCAD {} ready; workspace at {}",
+                "Demiourgos {VERSION} — OpenSCAD {} ready; workspace at {}",
                 scad_version.unwrap_or_default(),
                 self.workspace.root().display()
             )
         } else {
             format!(
-                "Demiurge {VERSION} — OpenSCAD NOT available: {}",
+                "Demiourgos {VERSION} — OpenSCAD NOT available: {}",
                 self.openscad_error.as_deref().unwrap_or("not found")
             )
         };
@@ -441,7 +441,7 @@ impl Demiurge {
         let height = args.height.unwrap_or(600);
         let projection = match &args.projection {
             Some(p) => parse_projection(p).map_err(invalid)?,
-            None => demiurge_scad::Projection::Ortho,
+            None => demiourgos_scad::Projection::Ortho,
         };
         let defines = self.defines(&args.defines);
 
@@ -528,9 +528,9 @@ impl Demiurge {
                     None => View::Iso,
                 };
                 (
-                    Some(demiurge_scad::camera_string(
+                    Some(demiourgos_scad::camera_string(
                         view,
-                        demiurge_scad::camera::DEFAULT_DISTANCE,
+                        demiourgos_scad::camera::DEFAULT_DISTANCE,
                     )),
                     view.label().to_string(),
                 )
@@ -795,7 +795,7 @@ impl Demiurge {
             .bounding_box()
             .ok_or_else(|| internal("part B is empty"))?;
         let gaps = geometry::axis_gaps(&bb_a, &bb_b);
-        let min_distance = demiurge_mesh::min_distance(&mesh_a, &mesh_b);
+        let min_distance = demiourgos_mesh::min_distance(&mesh_a, &mesh_b);
 
         // Compute the precise intersection volume via OpenSCAD.
         let wrapper_src = geometry::fit_check_scad(&a_stl, &b_stl, &transform);
@@ -869,10 +869,10 @@ impl Demiurge {
 }
 
 #[tool_handler]
-impl ServerHandler for Demiurge {
+impl ServerHandler for Demiourgos {
     fn get_info(&self) -> ServerInfo {
         let mut server_info = Implementation::from_build_env();
-        server_info.name = "demiurge".to_string();
+        server_info.name = "demiourgos".to_string();
         server_info.version = VERSION.to_string();
 
         let mut info = ServerInfo::default();
@@ -880,7 +880,7 @@ impl ServerHandler for Demiurge {
         info.capabilities = ServerCapabilities::builder().enable_tools().build();
         info.server_info = server_info;
         info.instructions = Some(
-            "Demiurge gives you eyes (render), a compiler (compile_check), and a tape measure \
+            "Demiourgos gives you eyes (render), a compiler (compile_check), and a tape measure \
              (measure, fit_check) for OpenSCAD. Write models with write_model, validate cheaply \
              with compile_check in your inner loop, then render or measure. Tools reference \
              models by name; rendered images and meshes are saved under the workspace's \

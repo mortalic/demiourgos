@@ -2,7 +2,7 @@
 
 use std::collections::BTreeMap;
 
-use demiurge_scad::{Define, Projection, View};
+use demiourgos_scad::{Define, Projection, View};
 use serde_json::Value;
 
 /// Convert a map of variable overrides into OpenSCAD `-D` defines.

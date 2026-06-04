@@ -1,6 +1,6 @@
 //! Named-view camera math.
 //!
-//! Demiurge owns the OpenSCAD camera string so callers never have to write raw
+//! Demiourgos owns the OpenSCAD camera string so callers never have to write raw
 //! `--camera=` values. We use OpenSCAD's *gimbal* camera form:
 //!
 //! ```text

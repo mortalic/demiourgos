@@ -190,13 +190,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "demiurge"
+name = "demiourgos"
 version = "0.1.0"
 dependencies = [
  "anyhow",
  "base64",
- "demiurge-mesh",
- "demiurge-scad",
+ "demiourgos-mesh",
+ "demiourgos-scad",
  "image",
  "rmcp",
  "schemars",
@@ -209,7 +209,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "demiurge-mesh"
+name = "demiourgos-mesh"
 version = "0.1.0"
 dependencies = [
  "parry3d-f64",
@@ -219,7 +219,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "demiurge-scad"
+name = "demiourgos-scad"
 version = "0.1.0"
 dependencies = [
  "libc",

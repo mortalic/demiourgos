@@ -1,7 +1,7 @@
 {
   "mcpServers": {
-    "demiurge": {
-      "command": "demiurge",
+    "demiourgos": {
+      "command": "demiourgos",
       "args": [],
       "env": {}
     }

@@ -1,6 +1,6 @@
 [package]
-name = "demiurge-scad"
-description = "OpenSCAD CLI wrapper: process orchestration, camera math, and diagnostic parsing for Demiurge."
+name = "demiourgos-scad"
+description = "OpenSCAD CLI wrapper: process orchestration, camera math, and diagnostic parsing for Demiourgos."
 version.workspace = true
 edition.workspace = true
 license.workspace = true

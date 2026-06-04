@@ -151,7 +151,7 @@ pub fn render_args(opts: &RenderOptions) -> Vec<OsString> {
     args
 }
 
-/// Export formats Demiurge can produce.
+/// Export formats Demiourgos can produce.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ExportFormat {
     BinStl,

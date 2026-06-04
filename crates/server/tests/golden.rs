@@ -8,8 +8,8 @@
 use std::path::PathBuf;
 use std::time::Duration;
 
-use demiurge_mesh::Mesh;
-use demiurge_scad::{ExportFormat, OpenScad};
+use demiourgos_mesh::Mesh;
+use demiourgos_scad::{ExportFormat, OpenScad};
 
 /// Repo root, derived from this crate's manifest dir (`crates/server`).
 fn repo_root() -> PathBuf {
@@ -41,7 +41,7 @@ async fn dovetail_bin_matches_golden() {
         .await
         .expect("OpenSCAD must be installed to run this test");
 
-    let out_dir = std::env::temp_dir().join(format!("demiurge-golden-{}", std::process::id()));
+    let out_dir = std::env::temp_dir().join(format!("demiourgos-golden-{}", std::process::id()));
     std::fs::create_dir_all(&out_dir).unwrap();
     let stl = out_dir.join("dovetail-bin.stl");
 

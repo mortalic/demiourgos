@@ -6,7 +6,7 @@ members = ["crates/server", "crates/scad", "crates/mesh"]
 version = "0.1.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/nathanferguson/demiurge"
+repository = "https://github.com/nathanferguson/demiourgos"
 authors = ["Nathan Ferguson <nathan@planetferguson.net>"]
 rust-version = "1.82"
 
@@ -37,8 +37,8 @@ stl_io = "0.8"
 parry3d-f64 = "0.17"
 
 # internal
-demiurge-scad = { path = "crates/scad" }
-demiurge-mesh = { path = "crates/mesh" }
+demiourgos-scad = { path = "crates/scad" }
+demiourgos-mesh = { path = "crates/mesh" }
 
 [profile.release]
 lto = "thin"

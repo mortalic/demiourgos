@@ -5,7 +5,7 @@
 use std::path::Path;
 use std::str::FromStr;
 
-use demiurge_mesh::{BoundingBox, Mesh};
+use demiourgos_mesh::{BoundingBox, Mesh};
 
 /// A principal axis.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -101,7 +101,7 @@ pub fn cross_section_scad(stl_path: &Path, axis: Axis, offset: f64) -> String {
         Axis::X => format!("translate([0,0,{offset}]) rotate([0,90,0]) {import}"),
         Axis::Y => format!("translate([0,0,{}]) rotate([90,0,0]) {import}", -offset),
     };
-    format!("// Demiurge cross_section wrapper\nprojection(cut = true)\n  {body}\n")
+    format!("// Demiourgos cross_section wrapper\nprojection(cut = true)\n  {body}\n")
 }
 
 /// Generate a wrapper SCAD computing the intersection of two STLs, with an
@@ -119,7 +119,7 @@ pub fn fit_check_scad(a_stl: &Path, b_stl: &Path, transform: &Transform) -> Stri
             t[0], t[1], t[2], r[0], r[1], r[2]
         )
     };
-    format!("// Demiurge fit_check wrapper\nintersection() {{\n  {a}\n  {b}\n}}\n")
+    format!("// Demiourgos fit_check wrapper\nintersection() {{\n  {a}\n  {b}\n}}\n")
 }
 
 /// Per-axis gap between two boxes: 0 when they overlap on that axis, otherwise

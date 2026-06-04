@@ -1,17 +1,17 @@
-# Demiurge
+# Demiourgos
 
 **An OpenSCAD MCP server that gives an AI assistant eyes, a compiler, and a tape
 measure.**
 
-Demiurge is a [Model Context Protocol](https://modelcontextprotocol.io) server,
+Demiourgos is a [Model Context Protocol](https://modelcontextprotocol.io) server,
 written in Rust, that turns an AI assistant into a capable OpenSCAD designer by
-closing the feedback loop. The assistant writes SCAD code; Demiurge renders it
+closing the feedback loop. The assistant writes SCAD code; Demiourgos renders it
 (eyes), validates it (a compiler), and — the part most OpenSCAD MCP servers
 lack — **measures and analyzes the resulting geometry** (a tape measure).
 
 ## Why it's different
 
-Most OpenSCAD MCP servers stop at *render* and *export*. Demiurge adds a
+Most OpenSCAD MCP servers stop at *render* and *export*. Demiourgos adds a
 **measurement and fit-checking layer**:
 
 - **`measure`** — exact bounding box, volume (mm³), center of mass, triangle
@@ -53,18 +53,18 @@ Requires [OpenSCAD](https://openscad.org) on your `PATH` (or set
 cargo install --path crates/server
 ```
 
-This installs the `demiurge` binary.
+This installs the `demiourgos` binary.
 
 ## MCP client configuration
 
-Demiurge speaks MCP over **stdio**. Register it with your client (the repo also
+Demiourgos speaks MCP over **stdio**. Register it with your client (the repo also
 ships a checked-in `.mcp.json`):
 
 ```json
 {
   "mcpServers": {
-    "demiurge": {
-      "command": "demiurge",
+    "demiourgos": {
+      "command": "demiourgos",
       "args": [],
       "env": {}
     }
@@ -76,12 +76,12 @@ ships a checked-in `.mcp.json`):
 
 | Env var | Default | Meaning |
 |---------|---------|---------|
-| `DEMIURGE_WORKSPACE` | `./workspace` | Directory of `.scad` models and `artifacts/`. |
+| `DEMIOURGOS_WORKSPACE` | `./workspace` | Directory of `.scad` models and `artifacts/`. |
 | `OPENSCAD_BINARY` | `openscad` (on PATH) | Path to the OpenSCAD binary. |
-| `DEMIURGE_RENDER_TIMEOUT` | `60` | Render timeout (seconds). |
-| `DEMIURGE_EXPORT_TIMEOUT` | `120` | Export timeout (seconds). |
-| `DEMIURGE_CHECK_TIMEOUT` | `30` | compile_check timeout (seconds). |
-| `DEMIURGE_LOG` | `info` | `tracing` log filter (logs go to stderr). |
+| `DEMIOURGOS_RENDER_TIMEOUT` | `60` | Render timeout (seconds). |
+| `DEMIOURGOS_EXPORT_TIMEOUT` | `120` | Export timeout (seconds). |
+| `DEMIOURGOS_CHECK_TIMEOUT` | `30` | compile_check timeout (seconds). |
+| `DEMIOURGOS_LOG` | `info` | `tracing` log filter (logs go to stderr). |
 
 ## Example
 
@@ -94,10 +94,10 @@ against a mating part.
 
 ⚠️ **Rendering arbitrary SCAD is code execution by design.** OpenSCAD's
 `import()` / `include` / `use` read files from disk, and SCAD can reference
-external resources. Demiurge runs the `openscad` binary on whatever source you
-give it. Treat Demiurge with the **same trust level as your own shell**: run it
+external resources. Demiourgos runs the `openscad` binary on whatever source you
+give it. Treat Demiourgos with the **same trust level as your own shell**: run it
 locally, do not expose it as a remote/network service, and don't feed it
-untrusted models. Demiurge sanitizes *model file names* so tool calls stay inside
+untrusted models. Demiourgos sanitizes *model file names* so tool calls stay inside
 the workspace, but it cannot sandbox what OpenSCAD itself does once running.
 
 ## Roadmap

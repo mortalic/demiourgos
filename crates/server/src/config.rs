@@ -23,19 +23,19 @@ pub struct Config {
 impl Config {
     /// Resolve configuration from the environment.
     ///
-    /// - `DEMIURGE_WORKSPACE` — workspace directory (default `./workspace`).
-    /// - `DEMIURGE_RENDER_TIMEOUT` / `DEMIURGE_EXPORT_TIMEOUT` /
-    ///   `DEMIURGE_CHECK_TIMEOUT` — timeouts in seconds.
+    /// - `DEMIOURGOS_WORKSPACE` — workspace directory (default `./workspace`).
+    /// - `DEMIOURGOS_RENDER_TIMEOUT` / `DEMIOURGOS_EXPORT_TIMEOUT` /
+    ///   `DEMIOURGOS_CHECK_TIMEOUT` — timeouts in seconds.
     pub fn from_env() -> Config {
-        let workspace_root = std::env::var_os("DEMIURGE_WORKSPACE")
+        let workspace_root = std::env::var_os("DEMIOURGOS_WORKSPACE")
             .map(PathBuf::from)
             .unwrap_or_else(|| PathBuf::from("workspace"));
 
         Config {
             workspace_root,
-            render_timeout: secs_from_env("DEMIURGE_RENDER_TIMEOUT", DEFAULT_RENDER_TIMEOUT),
-            export_timeout: secs_from_env("DEMIURGE_EXPORT_TIMEOUT", DEFAULT_EXPORT_TIMEOUT),
-            check_timeout: secs_from_env("DEMIURGE_CHECK_TIMEOUT", DEFAULT_CHECK_TIMEOUT),
+            render_timeout: secs_from_env("DEMIOURGOS_RENDER_TIMEOUT", DEFAULT_RENDER_TIMEOUT),
+            export_timeout: secs_from_env("DEMIOURGOS_EXPORT_TIMEOUT", DEFAULT_EXPORT_TIMEOUT),
+            check_timeout: secs_from_env("DEMIOURGOS_CHECK_TIMEOUT", DEFAULT_CHECK_TIMEOUT),
         }
     }
 }

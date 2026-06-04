@@ -1,6 +1,6 @@
-//! `demiurge-mesh` — STL parsing and geometric analysis.
+//! `demiourgos-mesh` — STL parsing and geometric analysis.
 //!
-//! This is the "tape measure" half of Demiurge. Given a triangle mesh (loaded
+//! This is the "tape measure" half of Demiourgos. Given a triangle mesh (loaded
 //! from an STL that OpenSCAD exported) it computes the quantities a designer
 //! actually wants to check: bounding box, solid volume, center of mass,
 //! triangle count, and whether the surface is watertight (a closed 2-manifold).

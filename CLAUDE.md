@@ -1,12 +1,12 @@
-# CLAUDE.md — Demiurge
+# CLAUDE.md — Demiourgos
 
 Project conventions for agentic coding sessions. Read this before changing code.
 
 ## What this is
 
-Demiurge is an **MCP server** (stdio, written in Rust with [`rmcp`]) that turns an
+Demiourgos is an **MCP server** (stdio, written in Rust with [`rmcp`]) that turns an
 AI assistant into a capable OpenSCAD designer by closing the feedback loop: the
-assistant writes SCAD, and Demiurge gives it **eyes** (render), a **compiler**
+assistant writes SCAD, and Demiourgos gives it **eyes** (render), a **compiler**
 (compile_check), and a **tape measure** (measure, fit_check). The differentiator
 versus other OpenSCAD MCP servers is the measurement/analysis layer — not just
 rendering and export.
@@ -15,17 +15,17 @@ rendering and export.
 
 ```
 crates/
-  scad/    demiurge-scad  — OpenSCAD CLI wrapper: discovery, timeouts, camera
+  scad/    demiourgos-scad  — OpenSCAD CLI wrapper: discovery, timeouts, camera
                             math, diagnostic parsing, argument builders.
-  mesh/    demiurge-mesh  — STL parsing + geometry (bbox, volume, COM,
+  mesh/    demiourgos-mesh  — STL parsing + geometry (bbox, volume, COM,
                             watertight) and parry3d min-distance.
-  server/  demiurge       — the MCP binary: tool surface + workspace + rmcp glue.
+  server/  demiourgos       — the MCP binary: tool surface + workspace + rmcp glue.
 examples/dovetail-bin/    — sample model used in docs and the golden test.
 tests/golden/             — checked-in reference outputs for regression tests.
 ```
 
 The server owns a **workspace directory** of `.scad` files (default `./workspace`,
-override with `DEMIURGE_WORKSPACE`). Generated images/meshes go in
+override with `DEMIOURGOS_WORKSPACE`). Generated images/meshes go in
 `<workspace>/artifacts/`. Tools reference models by **name**, never by passing
 full source on every call.
 
@@ -37,7 +37,7 @@ cargo test                                    # unit tests (no OpenSCAD needed)
 cargo test -- --include-ignored               # + integration tests (needs openscad)
 cargo clippy --all-targets -- -D warnings     # lint gate (CI enforces this)
 cargo fmt --all                               # format
-cargo run -p demiurge                         # run the server on stdio
+cargo run -p demiourgos                         # run the server on stdio
 ```
 
 Integration/golden tests that shell out to OpenSCAD are marked `#[ignore]`; CI
@@ -53,7 +53,7 @@ printf '%s\n' \
  '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"x","version":"0"}}}' \
  '{"jsonrpc":"2.0","method":"notifications/initialized"}' \
  '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' \
- | cargo run -q -p demiurge
+ | cargo run -q -p demiourgos
 ```
 
 ## Tool surface
@@ -76,7 +76,7 @@ payload; renders additionally return base64 PNG image content.
 ## Conventions
 
 - **stdout is sacred.** It is the MCP JSON-RPC transport. Never `println!` —
-  all logging goes through `tracing` to **stderr** (`DEMIURGE_LOG` controls level).
+  all logging goes through `tracing` to **stderr** (`DEMIOURGOS_LOG` controls level).
 - **Never panic on bad input.** OpenSCAD/mesh failures return structured,
   actionable errors. Usage errors (bad name, unknown view) → `invalid_params`;
   build failures (compile/export) → a result flagged `isError` whose payload
@@ -114,7 +114,7 @@ provides distance. The `advanced_camera` passthrough bypasses this for power use
 1. Add an args struct in `server.rs` deriving `Deserialize + schemars::JsonSchema`
    with doc comments (they become the JSON-schema field descriptions). Use
    `#[serde(rename = "fn")]` for a `$fn` field (named `fn_n` in Rust).
-2. Add an `async fn` inside the `#[tool_router] impl Demiurge` block, annotated
+2. Add an `async fn` inside the `#[tool_router] impl Demiourgos` block, annotated
    `#[tool(description = "…")]`, taking `Parameters(args): Parameters<YourArgs>`
    and returning `Result<CallToolResult, McpError>`.
 3. Resolve/validate the model with `self.require_model(&name)`; build defines via
