@@ -15,6 +15,7 @@ path = "src/main.rs"
 [dependencies]
 demiourgos-scad = { workspace = true }
 demiourgos-mesh = { workspace = true }
+demiourgos-tolerance = { workspace = true }
 
 rmcp = { workspace = true }
 tokio = { workspace = true }

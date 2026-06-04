@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/server", "crates/scad", "crates/mesh"]
+members = ["crates/server", "crates/scad", "crates/mesh", "crates/tolerance"]
 
 [workspace.package]
 version = "0.1.0"
@@ -39,6 +39,7 @@ parry3d-f64 = "0.17"
 # internal
 demiourgos-scad = { path = "crates/scad" }
 demiourgos-mesh = { path = "crates/mesh" }
+demiourgos-tolerance = { path = "crates/tolerance" }
 
 [profile.release]
 lto = "thin"

@@ -5,6 +5,10 @@ use std::path::Path;
 
 use demiourgos_mesh::Mesh;
 use demiourgos_scad::{Define, ExportFormat, OpenScad, RenderOptions, RunOutput, View};
+use demiourgos_tolerance::{
+    clearance_steps, coupon_scad, CouponSpec, Feature, FitClass, Measurement, Outcome, Profile,
+    Store, Verdict,
+};
 use rmcp::handler::server::wrapper::Parameters;
 use rmcp::model::{
     CallToolResult, Implementation, ProtocolVersion, ServerCapabilities, ServerInfo,
@@ -34,14 +38,18 @@ pub struct Demiourgos {
     /// works and reports the problem, other tools return a clear error.
     openscad: Option<OpenScad>,
     openscad_error: Option<String>,
+    /// Persistent tolerance store (material/printer profiles + outcome log).
+    store: Store,
 }
 
 impl Demiourgos {
-    /// Build the server from resolved config and an OpenSCAD discovery result.
+    /// Build the server from resolved config, an OpenSCAD discovery result, and
+    /// an opened tolerance store.
     pub fn new(
         config: Config,
         workspace: Workspace,
         openscad: Result<OpenScad, String>,
+        store: Store,
     ) -> Demiourgos {
         let (openscad, openscad_error) = match openscad {
             Ok(s) => (Some(s), None),
@@ -52,6 +60,7 @@ impl Demiourgos {
             workspace,
             openscad,
             openscad_error,
+            store,
         }
     }
 
@@ -81,6 +90,74 @@ impl Demiourgos {
             .as_ref()
             .map(params::defines_from_map)
             .unwrap_or_default()
+    }
+
+    /// Optionally assess a `fit_check` gap against a tolerance profile. Returns
+    /// `Ok(None)` unless both `material` and `fit_class` were supplied.
+    fn assess_fit(
+        &self,
+        args: &FitCheckArgs,
+        collides: bool,
+        min_distance: Option<f64>,
+    ) -> Result<Option<Value>, McpError> {
+        let (Some(material), Some(fit_class)) = (&args.material, &args.fit_class) else {
+            return Ok(None);
+        };
+        let class: FitClass = fit_class.parse().map_err(invalid)?;
+        let printer = args.printer.as_deref().unwrap_or("default");
+        let nozzle = nozzle_or_default(args.nozzle_mm);
+        let profile = self
+            .store
+            .effective(printer, material, nozzle)
+            .map_err(|e| internal(e.to_string()))?;
+        let needed = profile.clearance(class);
+
+        // Small tolerance band so "exactly recommended" reads as OK.
+        let band = 0.03_f64;
+        let (meets, verdict) = if collides {
+            match class {
+                FitClass::Press | FitClass::Snap => (
+                    true,
+                    format!("interference present, expected for a {class} fit"),
+                ),
+                _ => (
+                    false,
+                    format!("parts intersect — too tight for a {class} fit"),
+                ),
+            }
+        } else if let Some(gap) = min_distance {
+            match class {
+                FitClass::Press => (
+                    gap <= needed + band,
+                    if gap <= needed + band {
+                        format!("gap {gap:.3} mm is tight enough for a press fit")
+                    } else {
+                        format!("gap {gap:.3} mm is too loose for a press fit (want ≈{needed:.3})")
+                    },
+                ),
+                _ => {
+                    if gap + band < needed {
+                        (false, format!("gap {gap:.3} mm < recommended {needed:.3} mm/side — too tight for a {class} fit"))
+                    } else if gap > needed * 2.0 + 0.3 {
+                        (true, format!("gap {gap:.3} mm is well above recommended {needed:.3} mm/side — may be loose"))
+                    } else {
+                        (true, format!("gap {gap:.3} mm meets recommended {needed:.3} mm/side for a {class} fit"))
+                    }
+                }
+            }
+        } else {
+            (true, "parts are disjoint; no measurable gap".to_string())
+        };
+
+        Ok(Some(json!({
+            "profile_id": profile.key(),
+            "fit_class": class.to_string(),
+            "recommended_clearance_mm": needed,
+            "measured_gap_mm": min_distance,
+            "meets_spec": meets,
+            "verdict": verdict,
+            "source": source_str(&profile),
+        })))
     }
 
     /// Export a model to STL at `out`, returning the run output. The caller
@@ -277,6 +354,20 @@ pub struct FitCheckArgs {
     /// Optional variable overrides passed to both parts via `-D`.
     #[serde(default)]
     pub defines: Overrides,
+    /// Optional: assess the measured gap against a tolerance profile. Provide
+    /// material + fit_class (and optionally printer/nozzle) to have the result
+    /// say whether the clearance matches the recommended fit.
+    #[serde(default)]
+    pub material: Option<String>,
+    /// Printer for the tolerance assessment (default "default").
+    #[serde(default)]
+    pub printer: Option<String>,
+    /// Nozzle for the tolerance assessment, mm (default 0.4).
+    #[serde(default)]
+    pub nozzle_mm: Option<f64>,
+    /// Fit class for the tolerance assessment: slip, snug, press, or snap.
+    #[serde(default)]
+    pub fit_class: Option<String>,
 }
 
 // ===========================================================================
@@ -833,6 +924,11 @@ impl Demiourgos {
 
         const EPS: f64 = 1e-6;
         let collides = intersection_volume > EPS;
+
+        // Optional tolerance assessment: compare the measured gap to the profile's
+        // recommended per-side clearance for the requested fit class.
+        let assessment = self.assess_fit(&args, collides, min_distance)?;
+
         let summary = if collides {
             format!(
                 "COLLISION: {} and {} overlap by {:.4} mm^3",
@@ -844,8 +940,14 @@ impl Demiourgos {
             let gap_str = min_distance
                 .map(|d| format!("{d:.3} mm min gap"))
                 .unwrap_or_else(|| "disjoint".to_string());
+            let verdict = assessment
+                .as_ref()
+                .and_then(|a| a.get("verdict"))
+                .and_then(|v| v.as_str())
+                .map(|v| format!(" — {v}"))
+                .unwrap_or_default();
             format!(
-                "NO collision: {} and {} are clear ({gap_str})",
+                "NO collision: {} and {} are clear ({gap_str}){verdict}",
                 part_a.file_name(),
                 part_b.file_name()
             )
@@ -857,6 +959,7 @@ impl Demiourgos {
                 "intersection_volume_mm3": intersection_volume,
                 "min_distance_mm": min_distance,
                 "axis_gaps_mm": { "x": gaps[0], "y": gaps[1], "z": gaps[2] },
+                "fit_assessment": assessment,
                 "part_a": { "name": part_a.file_name(), "bounding_box": bb_a },
                 "part_b": {
                     "name": part_b.file_name(),
@@ -864,6 +967,347 @@ impl Demiourgos {
                     "transform": { "translation": transform.translation, "rotation": transform.rotation },
                 },
             }),
+        ))
+    }
+
+    // -----------------------------------------------------------------------
+    // Tolerance engine: profiles, calibration, coupons, and DFM.
+    // -----------------------------------------------------------------------
+
+    #[tool(
+        description = "List all known material/printer tolerance profiles with their calibrated \
+                       per-fit-class clearances and dimensional offsets."
+    )]
+    async fn list_profiles(&self) -> Result<CallToolResult, McpError> {
+        let profiles = self
+            .store
+            .list_effective()
+            .map_err(|e| internal(e.to_string()))?;
+        let arr: Vec<Value> = profiles.iter().map(profile_json).collect();
+        Ok(json_result(
+            format!("{} tolerance profile(s)", profiles.len()),
+            json!({ "profiles": arr }),
+        ))
+    }
+
+    #[tool(
+        description = "Get the effective (calibrated) tolerance profile for a printer + material + \
+                       nozzle: per-fit-class clearances, dimensional offsets, and how many outcomes \
+                       informed it."
+    )]
+    async fn get_profile(
+        &self,
+        Parameters(args): Parameters<ProfileArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let nozzle = nozzle_or_default(args.nozzle_mm);
+        let p = self
+            .store
+            .effective(&args.printer, &args.material, nozzle)
+            .map_err(|e| internal(e.to_string()))?;
+        Ok(json_result(profile_summary(&p), profile_json(&p)))
+    }
+
+    #[tool(
+        description = "Create or manually edit a tolerance profile baseline. Unset fields keep their \
+                       current/default values. Manual edits are the starting point that recorded \
+                       outcomes refine."
+    )]
+    async fn set_profile(
+        &self,
+        Parameters(args): Parameters<SetProfileArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let nozzle = nozzle_or_default(args.nozzle_mm);
+        let id = Profile::id(&args.printer, &args.material, nozzle);
+        let mut base = self
+            .store
+            .baseline(&id)
+            .map_err(|e| internal(e.to_string()))?
+            .unwrap_or_else(|| Profile::default_for(&args.printer, &args.material, nozzle));
+
+        if let Some(v) = args.slip {
+            base.clearances_mm.slip = v;
+        }
+        if let Some(v) = args.snug {
+            base.clearances_mm.snug = v;
+        }
+        if let Some(v) = args.press {
+            base.clearances_mm.press = v;
+        }
+        if let Some(v) = args.snap {
+            base.clearances_mm.snap = v;
+        }
+        if let Some(v) = args.xy_offset_mm {
+            base.xy_offset_mm = v;
+        }
+        if let Some(v) = args.hole_offset_mm {
+            base.hole_offset_mm = v;
+        }
+        if let Some(v) = args.elephant_foot_mm {
+            base.elephant_foot_mm = v;
+        }
+
+        self.store
+            .save_baseline(&base)
+            .map_err(|e| internal(e.to_string()))?;
+        let effective = self
+            .store
+            .effective(&args.printer, &args.material, nozzle)
+            .map_err(|e| internal(e.to_string()))?;
+        Ok(json_result(
+            format!("Saved profile {id}"),
+            profile_json(&effective),
+        ))
+    }
+
+    #[tool(
+        description = "Recommend the per-side clearance (mm) for a fit class (slip/snug/press/snap) \
+                       on a given printer + material, using the calibrated profile when available."
+    )]
+    async fn recommend_clearance(
+        &self,
+        Parameters(args): Parameters<RecommendArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let nozzle = nozzle_or_default(args.nozzle_mm);
+        let class: FitClass = args.fit_class.parse().map_err(invalid)?;
+        let p = self
+            .store
+            .effective(&args.printer, &args.material, nozzle)
+            .map_err(|e| internal(e.to_string()))?;
+        let clearance = p.clearance(class);
+        Ok(json_result(
+            format!(
+                "{} {} fit: {:.3} mm/side ({}) — hole = peg + {:.3} mm diametral",
+                p.key(),
+                class,
+                clearance,
+                source_str(&p),
+                clearance * 2.0
+            ),
+            json!({
+                "profile_id": p.key(),
+                "fit_class": class.to_string(),
+                "clearance_per_side_mm": clearance,
+                "clearance_diametral_mm": clearance * 2.0,
+                "source": source_str(&p),
+                "samples": p.samples,
+            }),
+        ))
+    }
+
+    #[tool(
+        description = "Generate and save a fit-test coupon model: a plate of holes stepped across a \
+                       clearance range plus a reference peg. Print it once, find the tightest hole \
+                       the peg gives the desired fit, then call record_outcome to calibrate. Returns \
+                       the model name and the clearance steps."
+    )]
+    async fn gen_fit_coupon(
+        &self,
+        Parameters(args): Parameters<CouponArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let nozzle = nozzle_or_default(args.nozzle_mm);
+        let default_spec = CouponSpec::default();
+        let peg = args.peg_diameter_mm.unwrap_or(default_spec.peg_diameter_mm);
+        let plate_t = args
+            .plate_thickness_mm
+            .unwrap_or(default_spec.plate_thickness_mm);
+
+        let clearances = match (args.min_clearance_mm, args.max_clearance_mm, args.step_mm) {
+            (Some(min), Some(max), Some(step)) => clearance_steps(min, max, step),
+            _ => default_spec.clearances_mm.clone(),
+        };
+        if clearances.is_empty() {
+            return Err(invalid(
+                "clearance range is empty; check min/max/step (need step > 0 and max >= min)",
+            ));
+        }
+
+        let spec = CouponSpec {
+            peg_diameter_mm: peg,
+            clearances_mm: clearances.clone(),
+            plate_thickness_mm: plate_t,
+        };
+        let scad = coupon_scad(&spec);
+
+        let raw_name = args
+            .name
+            .clone()
+            .unwrap_or_else(|| format!("{}_fit_coupon", args.material.to_ascii_lowercase()));
+        let name = Workspace::validate_name(&raw_name).map_err(invalid)?;
+        let path = self
+            .workspace
+            .write_model(&name, &scad)
+            .map_err(|e| internal(format!("failed to write coupon: {e}")))?;
+
+        // Ensure the profile exists so outcomes have somewhere to land.
+        self.store
+            .register(&args.printer, &args.material, nozzle)
+            .map_err(|e| internal(e.to_string()))?;
+
+        Ok(json_result(
+            format!(
+                "Wrote fit coupon '{}' ({} steps: {:.2}–{:.2} mm, peg {:.1} mm). Render/export it, print, then record_outcome.",
+                name.file_name(),
+                clearances.len(),
+                clearances.first().copied().unwrap_or(0.0),
+                clearances.last().copied().unwrap_or(0.0),
+                peg
+            ),
+            json!({
+                "model": name.file_name(),
+                "path": path.display().to_string(),
+                "profile_id": Profile::id(&args.printer, &args.material, nozzle),
+                "peg_diameter_mm": peg,
+                "clearance_steps_mm": clearances,
+            }),
+        ))
+    }
+
+    #[tool(
+        description = "Record a real-world print outcome to calibrate a profile. kind='coupon' \
+                       (fit_class + best_clearance_mm from a fit-test coupon), kind='caliper' \
+                       (feature outer/hole + nominal_mm + measured_mm), or kind='fit' (fit_class + \
+                       clearance_mm + verdict loose/good/tight/jam). Returns the updated profile."
+    )]
+    async fn record_outcome(
+        &self,
+        Parameters(args): Parameters<OutcomeArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let nozzle = nozzle_or_default(args.nozzle_mm);
+        let profile_id = Profile::id(&args.printer, &args.material, nozzle);
+
+        let measurement = match args.kind.trim().to_ascii_lowercase().as_str() {
+            "coupon" => {
+                let class: FitClass = args
+                    .fit_class
+                    .as_deref()
+                    .ok_or_else(|| invalid("kind='coupon' requires fit_class"))?
+                    .parse()
+                    .map_err(invalid)?;
+                let best = args
+                    .best_clearance_mm
+                    .ok_or_else(|| invalid("kind='coupon' requires best_clearance_mm"))?;
+                Measurement::Coupon {
+                    fit_class: class,
+                    best_clearance_mm: best,
+                }
+            }
+            "caliper" => {
+                let feature = match args
+                    .feature
+                    .as_deref()
+                    .map(|s| s.to_ascii_lowercase())
+                    .as_deref()
+                {
+                    Some("hole") => Feature::Hole,
+                    Some("outer") => Feature::Outer,
+                    _ => return Err(invalid("kind='caliper' requires feature 'outer' or 'hole'")),
+                };
+                let nominal = args
+                    .nominal_mm
+                    .ok_or_else(|| invalid("kind='caliper' requires nominal_mm"))?;
+                let measured = args
+                    .measured_mm
+                    .ok_or_else(|| invalid("kind='caliper' requires measured_mm"))?;
+                Measurement::Caliper {
+                    feature,
+                    nominal_mm: nominal,
+                    measured_mm: measured,
+                }
+            }
+            "fit" => {
+                let class: FitClass = args
+                    .fit_class
+                    .as_deref()
+                    .ok_or_else(|| invalid("kind='fit' requires fit_class"))?
+                    .parse()
+                    .map_err(invalid)?;
+                let clearance = args
+                    .clearance_mm
+                    .ok_or_else(|| invalid("kind='fit' requires clearance_mm"))?;
+                let verdict: Verdict = args
+                    .verdict
+                    .as_deref()
+                    .ok_or_else(|| invalid("kind='fit' requires verdict"))?
+                    .parse()
+                    .map_err(invalid)?;
+                Measurement::Fit {
+                    fit_class: class,
+                    clearance_mm: clearance,
+                    verdict,
+                }
+            }
+            other => {
+                return Err(invalid(format!(
+                    "unknown outcome kind '{other}' (expected coupon, caliper, or fit)"
+                )))
+            }
+        };
+
+        // Make sure the profile exists, then record and recompute.
+        self.store
+            .register(&args.printer, &args.material, nozzle)
+            .map_err(|e| internal(e.to_string()))?;
+        let outcome = Outcome {
+            profile_id: profile_id.clone(),
+            measurement,
+            note: args.note.clone(),
+            timestamp: None,
+        };
+        self.store
+            .append_outcome(&outcome)
+            .map_err(|e| internal(e.to_string()))?;
+
+        let p = self
+            .store
+            .effective(&args.printer, &args.material, nozzle)
+            .map_err(|e| internal(e.to_string()))?;
+        Ok(json_result(
+            format!("Recorded outcome for {profile_id}. {}", profile_summary(&p)),
+            profile_json(&p),
+        ))
+    }
+
+    #[tool(
+        description = "Design-for-manufacturing pre-flight on a model: export to STL and report \
+                       unsupported overhang area, the steepest overhang, bed-contact footprint, an \
+                       estimated minimum wall thickness, and actionable warnings. Catches most \
+                       reprint causes geometrically, before printing."
+    )]
+    async fn dfm_check(
+        &self,
+        Parameters(args): Parameters<DfmArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let name = self.require_model(&args.name)?;
+        let defines = self.defines(&args.defines);
+        let stl = self
+            .workspace
+            .artifact_path(&format!("{}.dfm.stl", name.stem()));
+        let run = self.export_stl(&name, &stl, args.fn_n, &defines).await?;
+        if !run.success || !stl.is_file() {
+            return Ok(json_error(
+                failure_summary("export", &run),
+                failure_payload("export", &run),
+            ));
+        }
+        let mesh =
+            Mesh::from_stl_path(&stl).map_err(|e| internal(format!("failed to load STL: {e}")))?;
+        let report = match args.overhang_threshold_deg {
+            Some(t) => mesh.dfm_report_with(t),
+            None => mesh.dfm_report(),
+        };
+        let summary = if report.warnings.is_empty() {
+            format!("{}: no DFM warnings", name.file_name())
+        } else {
+            format!(
+                "{}: {} warning(s) — {}",
+                name.file_name(),
+                report.warnings.len(),
+                report.warnings.join("; ")
+            )
+        };
+        Ok(json_result(
+            summary,
+            serde_json::to_value(&report).unwrap_or(json!({})),
         ))
     }
 }
@@ -880,13 +1324,192 @@ impl ServerHandler for Demiourgos {
         info.capabilities = ServerCapabilities::builder().enable_tools().build();
         info.server_info = server_info;
         info.instructions = Some(
-            "Demiourgos gives you eyes (render), a compiler (compile_check), and a tape measure \
-             (measure, fit_check) for OpenSCAD. Write models with write_model, validate cheaply \
-             with compile_check in your inner loop, then render or measure. Tools reference \
-             models by name; rendered images and meshes are saved under the workspace's \
-             artifacts directory."
+            "Demiourgos gives you eyes (render), a compiler (compile_check), a tape measure \
+             (measure, fit_check, cross_section), and a memory of what actually prints \
+             (tolerance profiles + calibration). Inner loop: write_model -> compile_check -> \
+             render/measure. Before printing, run dfm_check for overhang/wall warnings and use \
+             recommend_clearance for the right per-side gap on your printer+material. Calibrate a \
+             printer/material once with gen_fit_coupon, print it, then record_outcome — every \
+             future design reuses the learned clearances. Models are referenced by name; artifacts \
+             live under the workspace's artifacts directory."
                 .to_string(),
         );
         info
     }
+}
+
+// ===========================================================================
+// Tolerance-tool argument types and helpers
+// ===========================================================================
+
+/// Default nozzle diameter when the caller omits it.
+fn nozzle_or_default(n: Option<f64>) -> f64 {
+    n.unwrap_or(0.4)
+}
+
+fn source_str(p: &Profile) -> &'static str {
+    match p.source {
+        demiourgos_tolerance::ProfileSource::Default => "default",
+        demiourgos_tolerance::ProfileSource::Calibrated => "calibrated",
+    }
+}
+
+/// Full JSON view of a profile (its serde form plus its id).
+fn profile_json(p: &Profile) -> Value {
+    let mut v = serde_json::to_value(p).unwrap_or_else(|_| json!({}));
+    if let Some(obj) = v.as_object_mut() {
+        obj.insert("id".to_string(), json!(p.key()));
+    }
+    v
+}
+
+fn profile_summary(p: &Profile) -> String {
+    let c = &p.clearances_mm;
+    format!(
+        "{} [{}, {} sample(s)] clearances/side mm: slip {:.2}, snug {:.2}, press {:.2}, snap {:.2}",
+        p.key(),
+        source_str(p),
+        p.samples,
+        c.slip,
+        c.snug,
+        c.press,
+        c.snap
+    )
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct ProfileArgs {
+    /// Printer name (e.g. "ender3").
+    pub printer: String,
+    /// Material (e.g. "PLA", "PETG", "ABS", "TPU").
+    pub material: String,
+    /// Nozzle diameter in mm (default 0.4).
+    #[serde(default, rename = "nozzle_mm")]
+    pub nozzle_mm: Option<f64>,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct SetProfileArgs {
+    /// Printer name.
+    pub printer: String,
+    /// Material.
+    pub material: String,
+    /// Nozzle diameter in mm (default 0.4).
+    #[serde(default)]
+    pub nozzle_mm: Option<f64>,
+    /// Per-side slip-fit clearance (mm).
+    #[serde(default)]
+    pub slip: Option<f64>,
+    /// Per-side snug-fit clearance (mm).
+    #[serde(default)]
+    pub snug: Option<f64>,
+    /// Per-side press-fit clearance (mm).
+    #[serde(default)]
+    pub press: Option<f64>,
+    /// Per-side snap-fit clearance (mm).
+    #[serde(default)]
+    pub snap: Option<f64>,
+    /// Signed XY dimensional offset (printed − nominal), mm.
+    #[serde(default)]
+    pub xy_offset_mm: Option<f64>,
+    /// Signed hole-diameter offset (printed − nominal), mm.
+    #[serde(default)]
+    pub hole_offset_mm: Option<f64>,
+    /// Elephant's-foot first-layer widening, mm.
+    #[serde(default)]
+    pub elephant_foot_mm: Option<f64>,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct RecommendArgs {
+    /// Printer name.
+    pub printer: String,
+    /// Material.
+    pub material: String,
+    /// Nozzle diameter in mm (default 0.4).
+    #[serde(default)]
+    pub nozzle_mm: Option<f64>,
+    /// Fit class: slip, snug, press, or snap.
+    pub fit_class: String,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct CouponArgs {
+    /// Printer name.
+    pub printer: String,
+    /// Material.
+    pub material: String,
+    /// Nozzle diameter in mm (default 0.4).
+    #[serde(default)]
+    pub nozzle_mm: Option<f64>,
+    /// Model name to write (default "<material>_fit_coupon").
+    #[serde(default)]
+    pub name: Option<String>,
+    /// Reference peg diameter in mm (default 10).
+    #[serde(default)]
+    pub peg_diameter_mm: Option<f64>,
+    /// Smallest per-side clearance to test (mm). Provide min+max+step together.
+    #[serde(default)]
+    pub min_clearance_mm: Option<f64>,
+    /// Largest per-side clearance to test (mm).
+    #[serde(default)]
+    pub max_clearance_mm: Option<f64>,
+    /// Clearance step between holes (mm).
+    #[serde(default)]
+    pub step_mm: Option<f64>,
+    /// Plate / hole depth in mm (default 4).
+    #[serde(default)]
+    pub plate_thickness_mm: Option<f64>,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct OutcomeArgs {
+    /// Printer name.
+    pub printer: String,
+    /// Material.
+    pub material: String,
+    /// Nozzle diameter in mm (default 0.4).
+    #[serde(default)]
+    pub nozzle_mm: Option<f64>,
+    /// Outcome kind: "coupon", "caliper", or "fit".
+    pub kind: String,
+    /// Fit class (for kind coupon/fit): slip, snug, press, snap.
+    #[serde(default)]
+    pub fit_class: Option<String>,
+    /// Best per-side clearance from a coupon (for kind="coupon").
+    #[serde(default)]
+    pub best_clearance_mm: Option<f64>,
+    /// Feature measured (for kind="caliper"): "outer" or "hole".
+    #[serde(default)]
+    pub feature: Option<String>,
+    /// Nominal designed dimension (for kind="caliper"), mm.
+    #[serde(default)]
+    pub nominal_mm: Option<f64>,
+    /// Measured printed dimension (for kind="caliper"), mm.
+    #[serde(default)]
+    pub measured_mm: Option<f64>,
+    /// Clearance that was used (for kind="fit"), mm/side.
+    #[serde(default)]
+    pub clearance_mm: Option<f64>,
+    /// Fit verdict (for kind="fit"): loose, good, tight, jam.
+    #[serde(default)]
+    pub verdict: Option<String>,
+    /// Optional free-text note.
+    #[serde(default)]
+    pub note: Option<String>,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct DfmArgs {
+    /// Model name.
+    pub name: String,
+    /// Overhang threshold in degrees from horizontal (default 45).
+    #[serde(default)]
+    pub overhang_threshold_deg: Option<f64>,
+    /// Optional `$fn` override.
+    #[serde(default, rename = "fn")]
+    pub fn_n: Option<u32>,
+    /// Optional variable overrides passed via `-D`.
+    #[serde(default)]
+    pub defines: Overrides,
 }

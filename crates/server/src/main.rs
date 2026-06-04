@@ -96,7 +96,13 @@ async fn main() -> anyhow::Result<()> {
         }
     };
 
-    let service = Demiourgos::new(config, workspace, openscad)
+    // Tolerance store: material/printer profiles + outcome log, kept under the
+    // workspace so it travels with the project and is git-friendly.
+    let data_dir = config.data_dir.clone();
+    let store = demiourgos_tolerance::Store::open(&data_dir)
+        .with_context(|| format!("failed to open tolerance store at {}", data_dir.display()))?;
+
+    let service = Demiourgos::new(config, workspace, openscad, store)
         .serve(stdio())
         .await
         .context("failed to start MCP service over stdio")?;

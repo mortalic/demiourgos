@@ -4,8 +4,8 @@
 //! when they are disjoint — a tighter, geometry-aware measure than comparing
 //! axis-aligned bounding boxes.
 
-use parry3d_f64::na::{Isometry3, Point3};
-use parry3d_f64::query;
+use parry3d_f64::na::{Isometry3, Point3, Vector3};
+use parry3d_f64::query::{self, Ray, RayCast};
 use parry3d_f64::shape::TriMesh;
 
 use crate::Mesh;
@@ -42,6 +42,80 @@ pub fn min_distance(a: &Mesh, b: &Mesh) -> Option<f64> {
     })
     .ok()
     .flatten()
+}
+
+/// Estimate the minimum wall thickness of a (closed) mesh by ray sampling.
+///
+/// For up to `max_samples` triangles, fire a ray from just inside the surface
+/// along the inward normal and measure the distance to the opposite wall; the
+/// minimum across samples approximates the thinnest wall. Returns `None` for an
+/// empty mesh or if no sample produced a finite thickness. Wrapped in
+/// `catch_unwind` for robustness against pathological meshes.
+pub fn min_wall_thickness(mesh: &Mesh, max_samples: usize) -> Option<f64> {
+    std::panic::catch_unwind(|| {
+        let tri = to_trimesh(mesh)?;
+        let n_faces = mesh.faces.len();
+        if n_faces == 0 {
+            return None;
+        }
+        let stride = (n_faces / max_samples.max(1)).max(1);
+        // Step in just off the surface so the ray doesn't immediately hit its
+        // own originating triangle.
+        let eps = 1e-3;
+        let max_toi = 1.0e6;
+
+        let mut min_thickness: Option<f64> = None;
+        for f in mesh.faces.iter().step_by(stride) {
+            let a = mesh.vertices[f[0]];
+            let b = mesh.vertices[f[1]];
+            let c = mesh.vertices[f[2]];
+            let Some(normal) = winding_normal(a, b, c) else {
+                continue;
+            };
+            let centroid = [
+                (a[0] + b[0] + c[0]) / 3.0,
+                (a[1] + b[1] + c[1]) / 3.0,
+                (a[2] + b[2] + c[2]) / 3.0,
+            ];
+            // Inward direction is the negative outward normal.
+            let dir = Vector3::new(-normal[0], -normal[1], -normal[2]);
+            let origin = Point3::new(
+                centroid[0] + dir.x * eps,
+                centroid[1] + dir.y * eps,
+                centroid[2] + dir.z * eps,
+            );
+            let ray = Ray::new(origin, dir);
+            if let Some(toi) = tri.cast_local_ray(&ray, max_toi, false) {
+                let thickness = toi + eps;
+                if thickness > 1e-4 {
+                    min_thickness = Some(match min_thickness {
+                        Some(m) => m.min(thickness),
+                        None => thickness,
+                    });
+                }
+            }
+        }
+        min_thickness
+    })
+    .ok()
+    .flatten()
+}
+
+/// Outward unit normal from triangle winding, or `None` if degenerate.
+fn winding_normal(a: [f64; 3], b: [f64; 3], c: [f64; 3]) -> Option<[f64; 3]> {
+    let u = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
+    let v = [c[0] - a[0], c[1] - a[1], c[2] - a[2]];
+    let n = [
+        u[1] * v[2] - u[2] * v[1],
+        u[2] * v[0] - u[0] * v[2],
+        u[0] * v[1] - u[1] * v[0],
+    ];
+    let len = (n[0] * n[0] + n[1] * n[1] + n[2] * n[2]).sqrt();
+    if len < 1e-12 {
+        None
+    } else {
+        Some([n[0] / len, n[1] / len, n[2] / len])
+    }
 }
 
 #[cfg(test)]

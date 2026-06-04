@@ -39,10 +39,40 @@ pictures.
 | `measure` | Export binary STL and report bounding box, volume, center of mass, triangle count, and watertightness. |
 | `export` | Export to STL / 3MF / OFF / AMF / DXF / SVG with quality (`$fn`) and binary/ASCII STL options. |
 | `cross_section` | `projection(cut=true)` at a given axis + offset → section image. |
-| `fit_check` | Intersection volume, bounding boxes, per-axis gaps, and minimum surface distance between two parts (with an optional transform on the second). |
+| `fit_check` | Intersection volume, bounding boxes, per-axis gaps, and minimum surface distance between two parts (with an optional transform on the second). Optionally assesses the gap against a tolerance profile. |
+| `dfm_check` | Design-for-manufacturing pre-flight: unsupported overhang area, steepest overhang, bed-contact footprint, estimated minimum wall thickness, and warnings. |
+| `recommend_clearance` | Per-side clearance (mm) for a fit class (slip/snug/press/snap) on a printer + material, from the calibrated profile. |
+| `gen_fit_coupon` | Generate a one-print fit-test coupon (stepped holes + reference peg) to calibrate a printer/material. |
+| `record_outcome` | Record a real-world result (coupon best-fit, caliper reading, or assembly verdict) to calibrate a profile. |
+| `get_profile` / `list_profiles` / `set_profile` | Read or edit material/printer tolerance profiles. |
 
 Every tool returns a human-readable summary **and** a structured JSON payload;
 renders also return the PNG as inline image content so MCP clients can display it.
+
+## The tolerance engine — learn once, reuse forever
+
+The differentiator isn't just measuring the *digital* model; it's remembering
+what happens when it meets a *physical* printer, so you stop reprinting to dial
+in fits.
+
+Each `(printer, material, nozzle)` has a **profile** — per-fit-class clearances
+(slip/snug/press/snap) plus dimensional offsets — seeded from material defaults
+and refined by recorded **outcomes**. Profiles and an append-only outcome log
+persist under `<workspace>/.demiourgos/` (git-friendly JSON + NDJSON).
+
+The loop that cuts down iterations:
+
+1. **`gen_fit_coupon`** writes a single test print: a plate of holes stepped
+   across a clearance range, plus a reference peg.
+2. Print it once, find the tightest hole that gives the fit you want.
+3. **`record_outcome`** logs that clearance; the profile recalibrates.
+4. **`recommend_clearance`** (and profile-aware **`fit_check`**) now return the
+   value that actually works on *your* printer — for every future design.
+
+This is ideal for standardized geometry like **Gridfinity**: calibrate a material
+once, and every bin and drawer afterward uses the learned clearance instead of a
+guess. `record_outcome` also accepts caliper readings (to learn dimensional
+offsets) and qualitative assembly verdicts (`loose`/`good`/`tight`/`jam`).
 
 ## Install
 
@@ -104,8 +134,14 @@ the workspace, but it cannot sandbox what OpenSCAD itself does once running.
 
 Planned but out of scope for the current pass:
 
+- **Bayesian calibration** — replace the deterministic per-class update in
+  `calibrate_from` with a regression / Bayesian-optimization model that learns
+  across materials and suggests the next coupon to print.
+- `stress_check` — on-demand FEA for part strength (with FDM Z-anisotropy);
+  heavyweight, run outside the inner loop.
 - `param_sweep` — customizer preset grids / tolerance contact sheets.
-- `print_check` — slicer integration (PrusaSlicer CLI), overhang/wall analysis.
+- `print_check` — slicer integration (PrusaSlicer CLI) for time/material and
+  support estimates, building on `dfm_check`.
 - `visual_diff` — before/after render diffing.
 - `library_info` — BOSL2 source discovery beyond the health check.
 

@@ -18,7 +18,11 @@ crates/
   scad/    demiourgos-scad  — OpenSCAD CLI wrapper: discovery, timeouts, camera
                             math, diagnostic parsing, argument builders.
   mesh/    demiourgos-mesh  — STL parsing + geometry (bbox, volume, COM,
-                            watertight) and parry3d min-distance.
+                            watertight), parry3d min-distance, and DFM analysis
+                            (overhangs, wall thickness, footprint).
+  tolerance/ demiourgos-tolerance — material/printer profiles, fit-class
+                            clearances, calibration from outcomes, fit-test
+                            coupon generation, and the on-disk store.
   server/  demiourgos       — the MCP binary: tool surface + workspace + rmcp glue.
 examples/dovetail-bin/    — sample model used in docs and the golden test.
 tests/golden/             — checked-in reference outputs for regression tests.
@@ -26,8 +30,9 @@ tests/golden/             — checked-in reference outputs for regression tests.
 
 The server owns a **workspace directory** of `.scad` files (default `./workspace`,
 override with `DEMIOURGOS_WORKSPACE`). Generated images/meshes go in
-`<workspace>/artifacts/`. Tools reference models by **name**, never by passing
-full source on every call.
+`<workspace>/artifacts/`. Tolerance profiles + the outcome log live in
+`<workspace>/.demiourgos/` (override with `DEMIOURGOS_DATA`). Tools reference
+models by **name**, never by passing full source on every call.
 
 ## Build / test / lint
 
@@ -68,10 +73,35 @@ printf '%s\n' \
 | `measure`       | Export binary STL → bbox, volume, COM, triangle count, watertight. |
 | `export`        | STL/3MF/OFF/AMF/DXF/SVG with `$fn` and binary/ASCII options. |
 | `cross_section` | `projection(cut=true)` slice at axis+offset → 2D image. |
-| `fit_check`     | Intersection volume + per-axis gap + min surface distance between two parts. |
+| `fit_check`     | Intersection volume + per-axis gap + min surface distance; optional profile-aware fit assessment. |
+| `dfm_check`     | Overhang area/steepness, bed-contact footprint, min wall thickness, warnings. |
+| `recommend_clearance` | Per-side clearance for slip/snug/press/snap on a printer+material. |
+| `gen_fit_coupon` | Write a one-print fit-test coupon to calibrate a profile. |
+| `record_outcome` | Log a coupon/caliper/fit outcome → recalibrate a profile. |
+| `get_profile` / `list_profiles` / `set_profile` | Read/edit tolerance profiles. |
 
 Tools return a human-readable text summary **and** a `structuredContent` JSON
 payload; renders additionally return base64 PNG image content.
+
+## Tolerance engine (the "learn from prints" half)
+
+`demiourgos-tolerance` keeps a [`Profile`] per `(printer, material, nozzle)`:
+per-fit-class **clearances** (per-side mm; `fit_check` measures this directly, so
+a peg/hole pair is `hole = peg + 2 × clearance`) plus dimensional offsets, seeded
+from `material_defaults` and refined by **outcomes**. The [`Store`] persists a
+baseline registry (`profiles.json`) and an append-only outcome log
+(`outcomes.ndjson`); the *effective* profile is `calibrate_from(baseline, log)` —
+deterministic, replay-based, most-recent-feedback-wins per class. Manual edits via
+`set_profile` are the baseline; outcomes adjust it.
+
+The calibration loop: `gen_fit_coupon` → print → `record_outcome` (kind `coupon`,
+`caliper`, or `fit`) → `recommend_clearance` / `fit_check` now return calibrated
+values. To extend the learning model (e.g. Bayesian optimization), change
+`calibrate_from` only — the data model and tools stay put.
+
+DFM lives in `demiourgos-mesh` (`dfm_report` / `min_wall_thickness`); build
+direction is **+Z**, overhang angle is measured from horizontal (0° = flat
+ceiling, threshold default 45°).
 
 ## Conventions
 
