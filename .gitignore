@@ -1,0 +1,13 @@
+/target
+**/*.rs.bk
+Cargo.lock.bak
+
+# local Claude / editor settings
+.claude/settings.local.json
+*.local.*
+
+# runtime workspace produced by the server
+/workspace/
+
+# OS noise
+.DS_Store

@@ -1,0 +1,44 @@
+[workspace]
+resolver = "2"
+members = ["crates/server", "crates/scad", "crates/mesh"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/nathanferguson/demiurge"
+authors = ["Nathan Ferguson <nathan@planetferguson.net>"]
+rust-version = "1.82"
+
+[workspace.dependencies]
+# MCP
+rmcp = { version = "1", features = ["server", "macros", "transport-io"] }
+
+# async runtime
+tokio = { version = "1", features = ["full"] }
+
+# serialization / schemas
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+schemars = "1"
+
+# errors / logging
+anyhow = "1"
+thiserror = "2"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# imaging
+image = { version = "0.25", default-features = false, features = ["png"] }
+base64 = "0.22"
+
+# mesh
+stl_io = "0.8"
+parry3d-f64 = "0.17"
+
+# internal
+demiurge-scad = { path = "crates/scad" }
+demiurge-mesh = { path = "crates/mesh" }
+
+[profile.release]
+lto = "thin"

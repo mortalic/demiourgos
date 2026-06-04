@@ -1,0 +1,21 @@
+[package]
+name = "demiurge-scad"
+description = "OpenSCAD CLI wrapper: process orchestration, camera math, and diagnostic parsing for Demiurge."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+tokio = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+serde = { workspace = true }
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+[dev-dependencies]
+tokio = { workspace = true }
