@@ -17,6 +17,8 @@ pub struct Config {
     pub workspace_root: PathBuf,
     /// Directory for the tolerance store (profiles + outcomes).
     pub data_dir: PathBuf,
+    /// Default slicer config (.ini) for `print_check`, if set.
+    pub slicer_config: Option<PathBuf>,
     pub render_timeout: Duration,
     pub export_timeout: Duration,
     pub check_timeout: Duration,
@@ -39,9 +41,14 @@ impl Config {
             .map(PathBuf::from)
             .unwrap_or_else(|| workspace_root.join(".demiourgos"));
 
+        let slicer_config = std::env::var_os("DEMIOURGOS_SLICER_CONFIG")
+            .filter(|v| !v.is_empty())
+            .map(PathBuf::from);
+
         Config {
             workspace_root,
             data_dir,
+            slicer_config,
             render_timeout: secs_from_env("DEMIOURGOS_RENDER_TIMEOUT", DEFAULT_RENDER_TIMEOUT),
             export_timeout: secs_from_env("DEMIOURGOS_EXPORT_TIMEOUT", DEFAULT_EXPORT_TIMEOUT),
             check_timeout: secs_from_env("DEMIOURGOS_CHECK_TIMEOUT", DEFAULT_CHECK_TIMEOUT),

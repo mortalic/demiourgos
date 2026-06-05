@@ -1847,9 +1847,16 @@ impl Demiourgos {
         let gcode = self
             .workspace
             .artifact_path(&format!("{}.gcode", name.stem()));
+        // Use the explicit config, else the DEMIOURGOS_SLICER_CONFIG default.
+        let config = args.config.clone().or_else(|| {
+            self.config
+                .slicer_config
+                .as_ref()
+                .map(|p| p.display().to_string())
+        });
         let mut cmd = tokio::process::Command::new(&slicer);
         cmd.arg("--export-gcode").arg("-o").arg(&gcode);
-        if let Some(cfg) = &args.config {
+        if let Some(cfg) = &config {
             cmd.arg("--load").arg(cfg);
         }
         if let Some(lh) = args.layer_height_mm {
@@ -1903,6 +1910,7 @@ impl Demiourgos {
             json!({
                 "available": true,
                 "slicer": slicer.display().to_string(),
+                "config": config,
                 "gcode": gcode.display().to_string(),
                 "stats_parsed": parsed,
                 "stats": stats,

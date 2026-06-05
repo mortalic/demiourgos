@@ -172,6 +172,7 @@ a checked-in `.mcp.json`):
 | `DEMIOURGOS_DATA` | `<workspace>/.demiourgos` | Tolerance store (profiles + outcome log). |
 | `OPENSCAD_BINARY` | `openscad` (on PATH) | Path to the OpenSCAD binary. |
 | `DEMIOURGOS_SLICER` | auto-discovered on PATH | Path to a PrusaSlicer-family CLI for `print_check`. |
+| `DEMIOURGOS_SLICER_CONFIG` | none | Default slicer config (`.ini`) for `print_check` (e.g. `slicer/pla-0.4-1.75.ini`). |
 | `DEMIOURGOS_RENDER_TIMEOUT` | `60` | Render timeout (seconds). |
 | `DEMIOURGOS_EXPORT_TIMEOUT` | `120` | Export / slice timeout (seconds). |
 | `DEMIOURGOS_CHECK_TIMEOUT` | `30` | compile_check timeout (seconds). |
@@ -191,8 +192,11 @@ a checked-in `.mcp.json`):
   rectangular cantilever with a tip load and applies FDM knockdowns; use it to
   *size* hooks/brackets, not to certify safety-critical parts.
 - **`print_check` needs a slicer config.** Slicing requires printer/print/filament
-  presets — pass a `.ini` via the `config` argument (or have a configured slicer
-  on PATH). Without a slicer it reports `available: false`.
+  presets — accurate **weight** in particular needs the filament *density*. A
+  ready-made generic PLA config (0.4 mm nozzle, 1.75 mm filament, 1 kg spool) ships
+  at [`slicer/pla-0.4-1.75.ini`](slicer/pla-0.4-1.75.ini); set
+  `DEMIOURGOS_SLICER_CONFIG` to it (or pass `config`). The file lists density +
+  temperatures for other materials. Without a slicer it reports `available: false`.
 
 ## Security note
 
