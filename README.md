@@ -206,6 +206,14 @@ a checked-in `.mcp.json`):
   flush-folding wall hook designed and validated entirely with Demiourgos
   (renders, STLs, an offline `view_3d` viewer, and a fit-test coupon).
 
+## Slicing
+
+Demiourgos's STLs are pre-oriented to print support-free and assume a calibrated
+printer. For the slicer settings that most affect a successful print — first
+layer, flow/dimensional accuracy, cooling, supports-off, walls/infill — with
+specific guidance for **PrusaSlicer (Prusa XL)** and **OrcaSlicer 2.3.0 (Troodon
+300)**, see [`docs/slicing.md`](docs/slicing.md).
+
 ## Notes & caveats
 
 - **`stress_check` is a first-order estimate, not FEA.** It models a prismatic
