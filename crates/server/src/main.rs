@@ -11,6 +11,8 @@ mod params;
 mod render;
 mod result;
 mod server;
+mod slicer;
+mod strength;
 mod viewer;
 mod workspace;
 

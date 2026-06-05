@@ -1759,6 +1759,156 @@ impl Demiourgos {
             }),
         ))
     }
+
+    #[tool(
+        description = "Estimate a part's load-bearing strength with a first-order cantilever-beam \
+                       model (NOT FEA): given the critical section width/height, the lever length, \
+                       material, print orientation, and infill, returns the max tip load before \
+                       yield and — if a load is given — the bending stress and safety factor. Good \
+                       for sizing hooks/brackets/arms; for safety-critical parts use real FEA."
+    )]
+    async fn stress_check(
+        &self,
+        Parameters(args): Parameters<StressCheckArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let orientation = args
+            .orientation
+            .as_deref()
+            .unwrap_or("flat")
+            .parse::<crate::strength::Orientation>()
+            .map_err(invalid)?;
+        let spec = crate::strength::BeamSpec {
+            width_mm: args.width_mm,
+            height_mm: args.height_mm,
+            length_mm: args.length_mm,
+            material: args.material.clone().unwrap_or_else(|| "PLA".to_string()),
+            orientation,
+            infill_fraction: args.infill_percent.unwrap_or(40.0) / 100.0,
+            load_n: args.load_n,
+        };
+        let report = crate::strength::estimate(&spec).map_err(invalid)?;
+        let summary = match report.safety_factor {
+            Some(sf) => format!(
+                "Max tip load ~{:.1} N (~{:.2} kg); at {:.1} N the stress is {:.1} MPa, safety factor {:.1}",
+                report.max_load_n,
+                report.max_load_kg,
+                report.applied_load_n.unwrap_or(0.0),
+                report.bending_stress_mpa.unwrap_or(0.0),
+                sf
+            ),
+            None => format!(
+                "Max tip load before yield ~{:.1} N (~{:.2} kg)",
+                report.max_load_n, report.max_load_kg
+            ),
+        };
+        Ok(json_result(
+            summary,
+            serde_json::to_value(&report).unwrap_or(json!({})),
+        ))
+    }
+
+    #[tool(
+        description = "Print-time and filament estimate via a PrusaSlicer-family CLI: export the \
+                       model to STL, slice it, and report estimated time and filament (length / \
+                       volume / weight). Needs a slicer on PATH (or DEMIOURGOS_SLICER) and a slicer \
+                       config; reports cleanly when unavailable."
+    )]
+    async fn print_check(
+        &self,
+        Parameters(args): Parameters<PrintCheckArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let slicer = match crate::slicer::discover_slicer() {
+            Some(s) => s,
+            None => {
+                return Ok(json_result(
+                    "No slicer found. Install PrusaSlicer/SuperSlicer/OrcaSlicer (or set \
+                     DEMIOURGOS_SLICER) to enable print estimates.",
+                    json!({
+                        "available": false,
+                        "searched": crate::slicer::SLICER_CANDIDATES,
+                    }),
+                ))
+            }
+        };
+
+        let name = self.require_model(&args.name)?;
+        let defines = self.defines(&args.defines);
+        let stl = self
+            .workspace
+            .artifact_path(&format!("{}.print.stl", name.stem()));
+        let run = self.export_stl(&name, &stl, args.fn_n, &defines).await?;
+        if !run.success || !stl.is_file() {
+            return Ok(json_error(
+                failure_summary("export", &run),
+                failure_payload("export", &run),
+            ));
+        }
+
+        let gcode = self
+            .workspace
+            .artifact_path(&format!("{}.gcode", name.stem()));
+        let mut cmd = tokio::process::Command::new(&slicer);
+        cmd.arg("--export-gcode").arg("-o").arg(&gcode);
+        if let Some(cfg) = &args.config {
+            cmd.arg("--load").arg(cfg);
+        }
+        if let Some(lh) = args.layer_height_mm {
+            cmd.arg("--layer-height").arg(lh.to_string());
+        }
+        cmd.arg(&stl);
+        cmd.stdin(std::process::Stdio::null())
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::piped());
+
+        let output = match tokio::time::timeout(self.config.export_timeout, cmd.output()).await {
+            Ok(Ok(o)) => o,
+            Ok(Err(e)) => {
+                return Err(internal(format!(
+                    "failed to run slicer {}: {e}",
+                    slicer.display()
+                )))
+            }
+            Err(_) => return Err(internal("slicer timed out")),
+        };
+
+        if !output.status.success() || !gcode.is_file() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            return Ok(json_error(
+                "Slicing failed — a slicer config (printer/print/filament presets) is usually \
+                 required; pass `config` pointing at a slicer .ini.",
+                json!({
+                    "available": true,
+                    "slicer": slicer.display().to_string(),
+                    "stderr": stderr.lines().rev().take(8).collect::<Vec<_>>(),
+                }),
+            ));
+        }
+
+        let text = std::fs::read_to_string(&gcode).unwrap_or_default();
+        let stats = crate::slicer::parse_gcode_stats(&text);
+        let parsed = !stats.is_empty();
+        Ok(json_result(
+            format!(
+                "{}: {}, {} filament",
+                name.file_name(),
+                stats
+                    .print_time
+                    .clone()
+                    .unwrap_or_else(|| "time n/a".into()),
+                stats
+                    .filament_g
+                    .map(|g| format!("{g:.1} g"))
+                    .unwrap_or_else(|| "n/a".into())
+            ),
+            json!({
+                "available": true,
+                "slicer": slicer.display().to_string(),
+                "gcode": gcode.display().to_string(),
+                "stats_parsed": parsed,
+                "stats": stats,
+            }),
+        ))
+    }
 }
 
 #[tool_handler]
@@ -2124,4 +2274,44 @@ pub struct SuggestCouponArgs {
     /// Model name to write (default "<material>_<class>_coupon").
     #[serde(default)]
     pub name: Option<String>,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct StressCheckArgs {
+    /// Critical section width (mm) — the dimension across the bending axis.
+    pub width_mm: f64,
+    /// Critical section height (mm) — the dimension in the bending direction.
+    pub height_mm: f64,
+    /// Lever length (mm) from the support to where the load is applied.
+    pub length_mm: f64,
+    /// Material (PLA, PETG, ABS, TPU, Nylon). Default PLA.
+    #[serde(default)]
+    pub material: Option<String>,
+    /// Print orientation vs the load: flat, on_edge, or upright. Default flat.
+    #[serde(default)]
+    pub orientation: Option<String>,
+    /// Infill percent 0-100 (default 40).
+    #[serde(default)]
+    pub infill_percent: Option<f64>,
+    /// Applied tip load in newtons, to get stress + safety factor.
+    #[serde(default)]
+    pub load_n: Option<f64>,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct PrintCheckArgs {
+    /// Model name.
+    pub name: String,
+    /// Path to a slicer config (.ini) with printer/print/filament presets.
+    #[serde(default)]
+    pub config: Option<String>,
+    /// Layer height override in mm.
+    #[serde(default)]
+    pub layer_height_mm: Option<f64>,
+    /// Optional `$fn` override.
+    #[serde(default, rename = "fn")]
+    pub fn_n: Option<u32>,
+    /// Optional variable overrides passed via `-D`.
+    #[serde(default)]
+    pub defines: Overrides,
 }
