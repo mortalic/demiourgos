@@ -70,7 +70,7 @@ printf '%s\n' \
 | `read_model` / `list_models` | Retrieve / enumerate models. |
 | `compile_check` | Cheap inner-loop validation (`-o tmp.csg`); errors/warnings + ECHO. |
 | `render`        | PNG of a named view, or a labeled contact sheet from `views[]`. |
-| `view_3d`       | Self-contained Three.js HTML viewer of the exported mesh (interactive orbit/zoom). |
+| `view_3d`       | Offline self-contained Three.js HTML viewer of the exported mesh (orbit/zoom). Three.js is vendored under `crates/server/assets/three/` (MIT) and inlined via `include_str!`. |
 | `measure`       | Export binary STL → bbox, volume, COM, triangle count, watertight. |
 | `export`        | STL/3MF/OFF/AMF/DXF/SVG with `$fn` and binary/ASCII options. |
 | `cross_section` | `projection(cut=true)` slice at axis+offset → 2D image. |

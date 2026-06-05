@@ -2,19 +2,38 @@
 //!
 //! Demiourgos renders static PNGs via OpenSCAD; this produces a self-contained
 //! HTML page that shows the actual exported mesh in an orbit-controlled WebGL
-//! viewer (Three.js). The STL is embedded as base64 so the file is portable —
-//! open it in any browser, no server needed. Three.js itself loads from a CDN.
+//! viewer (Three.js). The STL **and** Three.js itself are inlined, so the page
+//! works fully offline — open it in any browser with no network access.
+//!
+//! Three.js and its addons are vendored under `assets/three/` and embedded via
+//! `include_str!`. They are exposed to the page's ES modules through an import
+//! map whose entries are `data:` URLs, so the addons' own `import … from 'three'`
+//! resolves to the inlined library without touching the network.
 
-/// Build a standalone HTML viewer for a binary STL (base64-encoded).
+use base64::Engine;
+
+/// Vendored three.js r160 (MIT). See `assets/three/NOTICE.md`.
+const THREE_SRC: &str = include_str!("../assets/three/three.module.min.js");
+const ORBIT_SRC: &str = include_str!("../assets/three/OrbitControls.js");
+const STLLOADER_SRC: &str = include_str!("../assets/three/STLLoader.js");
+
+fn b64(s: &str) -> String {
+    base64::engine::general_purpose::STANDARD.encode(s.as_bytes())
+}
+
+/// Build a standalone, offline HTML viewer for a binary STL (base64-encoded).
 ///
-/// `title` and `meta` are shown in an overlay; `stl_base64` is the embedded
-/// model. `theme_hex` is the model surface color (e.g. `#d9a441`).
-pub fn viewer_html(title: &str, meta: &str, stl_base64: &str, theme_hex: &str) -> String {
+/// `title` and `meta` are shown in an overlay; `model_stl_base64` is the embedded
+/// model; `theme_hex` is the model surface color (6 hex digits, no `#`).
+pub fn viewer_html(title: &str, meta: &str, model_stl_base64: &str, theme_hex: &str) -> String {
     TEMPLATE
+        .replace("__THREE_B64__", &b64(THREE_SRC))
+        .replace("__ORBIT_B64__", &b64(ORBIT_SRC))
+        .replace("__STLLOADER_B64__", &b64(STLLOADER_SRC))
+        .replace("__MODEL_B64__", model_stl_base64)
+        .replace("__THEME__", theme_hex)
         .replace("__TITLE__", &escape_html(title))
         .replace("__META__", &escape_html(meta))
-        .replace("__THEME__", theme_hex)
-        .replace("__STL_B64__", stl_base64)
 }
 
 fn escape_html(s: &str) -> String {
@@ -51,14 +70,14 @@ const TEMPLATE: &str = r##"<!doctype html>
 <body>
 <div id="app"></div>
 <div id="info"><b>__TITLE__</b><br><span class="meta">__META__</span></div>
-<div id="hint">drag to orbit · scroll to zoom · right-drag to pan · R to reset</div>
-<div id="err">Failed to load the 3D viewer (Three.js could not be fetched — an internet
-connection is required the first time).</div>
+<div id="hint">drag to orbit · scroll to zoom · right-drag to pan · R to reset · fully offline</div>
+<div id="err">Failed to initialize the 3D viewer — see the browser console.</div>
 
 <script type="importmap">
 { "imports": {
-  "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-  "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  "three": "data:text/javascript;base64,__THREE_B64__",
+  "three/addons/controls/OrbitControls.js": "data:text/javascript;base64,__ORBIT_B64__",
+  "three/addons/loaders/STLLoader.js": "data:text/javascript;base64,__STLLOADER_B64__"
 } }
 </script>
 
@@ -68,8 +87,8 @@ connection is required the first time).</div>
   import { STLLoader } from 'three/addons/loaders/STLLoader.js';
 
   try {
-    const STL_B64 = "__STL_B64__";
-    const bin = atob(STL_B64);
+    const MODEL_B64 = "__MODEL_B64__";
+    const bin = atob(MODEL_B64);
     const bytes = new Uint8Array(bin.length);
     for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
     const geo = new STLLoader().parse(bytes.buffer);
@@ -143,16 +162,21 @@ mod tests {
     use super::*;
 
     #[test]
-    fn html_embeds_inputs() {
+    fn html_inlines_three_and_model_offline() {
         let html = viewer_html("widget", "12 mm", "QUJD", "d9a441");
         assert!(html.contains("<title>widget"));
         assert!(html.contains("12 mm"));
-        assert!(html.contains("QUJD"));
+        assert!(html.contains("QUJD")); // model base64
         assert!(html.contains("0xd9a441"));
-        assert!(html.contains("STLLoader"));
+        // Three.js is inlined as a data: URL module, not fetched from a CDN.
+        assert!(html.contains("data:text/javascript;base64,"));
+        assert!(!html.contains("unpkg.com"));
+        assert!(!html.contains("http://"));
+        assert!(!html.contains("https://"));
         // No leftover placeholders.
-        assert!(!html.contains("__STL_B64__"));
-        assert!(!html.contains("__TITLE__"));
+        for ph in ["__THREE_B64__", "__ORBIT_B64__", "__STLLOADER_B64__", "__MODEL_B64__", "__TITLE__", "__THEME__"] {
+            assert!(!html.contains(ph), "leftover placeholder {ph}");
+        }
     }
 
     #[test]

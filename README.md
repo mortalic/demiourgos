@@ -38,7 +38,7 @@ pictures.
 | `render` | PNG of a named view (`front`/`back`/`left`/`right`/`top`/`bottom`/`iso`), or a labeled **contact sheet** from a `views` array. Ortho or perspective, `$fn` and `-D` overrides, plus an `advanced_camera` passthrough. |
 | `measure` | Export binary STL and report bounding box, volume, center of mass, triangle count, and watertightness. |
 | `export` | Export to STL / 3MF / OFF / AMF / DXF / SVG with quality (`$fn`) and binary/ASCII STL options. |
-| `view_3d` | Build a self-contained interactive 3D viewer (Three.js HTML) of a model — orbit/zoom/pan the real mesh in a browser. |
+| `view_3d` | Build a **fully offline**, self-contained interactive 3D viewer (Three.js inlined) of a model — orbit/zoom/pan the real mesh in a browser, no network needed. |
 | `cross_section` | `projection(cut=true)` at a given axis + offset → section image. |
 | `fit_check` | Intersection volume, bounding boxes, per-axis gaps, and minimum surface distance between two parts (with an optional transform on the second). Optionally assesses the gap against a tolerance profile. |
 | `dfm_check` | Design-for-manufacturing pre-flight: unsupported overhang area, steepest overhang, bed-contact footprint, estimated minimum wall thickness, and warnings. |
