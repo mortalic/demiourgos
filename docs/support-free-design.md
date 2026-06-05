@@ -84,6 +84,36 @@ The paddle needs support from two things, each with a fix above:
 2. **Rounded edges on the down-facing face** → chamfer them, or reorient so the
    rounded profile is vertical (rules 1 / 5).
 
+## Design for assembly — printed hinges and pivots
+
+A part can be perfectly printable and still be **impossible to assemble**. Check
+the assembly path before committing to a joint:
+
+- **A snap-fit only works if something can flex.** Integral snap pins need a thin,
+  cantilevered wall (a slot or a clip arm) to spring over the mating feature. Pins
+  that snap into a **rigid pocket** (thick walls backed by solid material) won't
+  go in — there's nothing to deflect. Rule of thumb: a snap arm should be a thin
+  finger several times longer than the interference it has to clear, not a solid
+  wall.
+- **Rotating bearings must stay round.** You can't teardrop or chamfer the *bearing*
+  surface of a pin/socket that turns — it would bind. Teardrop the **hole** (the
+  round part bears, the apex is just self-supporting clearance above); keep the
+  pin/axle round.
+- **The default robust pivot is a separate axle.** For a rotating joint between two
+  rigid printed parts, drop one part into the other with clearance, then push a
+  **separate axle** through aligned (teardrop) bores — a printed headed pin, or a
+  rod / filament / paperclip. It assembles every time, prints support-free (the
+  axle stands on its head; the bores self-support), and sidesteps the snap-flex
+  problem entirely.
+- **Quick check:** for an integral-pin joint, compare *(how far the feature must
+  deflect)* against *(how much the wall can actually flex)* and *(the lateral play
+  available to angle parts in)*. If the deflection wins, switch to a separate axle
+  or add a real flex slot.
+
+This is why the folding-hook pivot uses a separate axle: its integral pins needed
+~3 mm of wall deflection into a rigid 6 mm pocket with only ~0.8 mm of play — it
+could never have gone together.
+
 ## Out of scope (but worth knowing)
 
 - **Topology optimization with overhang constraints** generates self-supporting

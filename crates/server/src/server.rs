@@ -2002,8 +2002,14 @@ impl ServerHandler for Demiourgos {
              hexagonal so their tops self-support. Prefer flat bridges over sloped/domed ceilings. \
              Reorient before redesigning (orientation_advisor). The library demiourgos_support.scad \
              in the workspace provides teardrop_hole(), hex_hole(), and support_pin(); `use \
-             <demiourgos_support.scad>`. See docs/support-free-design.md. Models are referenced by \
-             name; artifacts live under the workspace's artifacts directory."
+             <demiourgos_support.scad>`. See docs/support-free-design.md.\n\n\
+             DESIGN FOR ASSEMBLY: a printable part can still be impossible to assemble. A snap-fit \
+             only works if something can flex — integral snap pins will NOT push into a rigid \
+             pocket. Rotating bearings must stay round (teardrop the HOLE, not the pin). For a \
+             pivot between two rigid printed parts, prefer a SEPARATE AXLE through aligned teardrop \
+             bores (drop the part in, push a printed pin / rod / filament through) — it always \
+             assembles and prints support-free.\n\n\
+             Models are referenced by name; artifacts live under the workspace's artifacts directory."
                 .to_string(),
         );
         info
