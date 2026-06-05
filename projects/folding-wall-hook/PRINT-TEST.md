@@ -1,25 +1,34 @@
-# Print-test note — verify the axle fit
+# Print-test note — verify the axle fit and the detent
 
-The pivot clearances are **calibrated-printer assumptions, not yet verified on a
-print**. Run this short test before trusting them, and feed the result back into
-Demiourgos so the next design uses the real numbers.
+The pivot clearances and the **detent snap force** are calibrated-printer
+assumptions, **not yet verified on a print**. Run this short test before trusting
+them, and feed the result back into Demiourgos so the next design uses the real
+numbers.
 
 ## The fits being checked
 
 | Fit | Bore | Per-side clearance | Target feel |
 |-----|------|--------------------|-------------|
 | Axle in **frame** | `axle_d + 2*axle_fit` = **3.10 mm** | 0.05 mm | **friction** — presses in, doesn't back out on its own |
-| Axle in **paddle** | `axle_d + 2*axle_clear` = **3.60 mm** | 0.30 mm | **free rotation** — paddle swings with no bind |
-| Lock pin in **paddle** | `lock_d + 2*lock_clear` = **3.20 mm** | 0.10 mm | **snug** — drops in, minimal slop under load |
-| Lock pin in **frame** | `lock_d + 2*lock_fit` = **3.15 mm** | 0.075 mm | snug, holds the deployed angle |
+| Axle in **paddle** | `axle_d + 2*axle_clear` = **3.60 mm** | 0.30 mm | **free rotation** — paddle swings (a touch stiff from the detent) |
 | Paddle in **pocket** | — | 0.40 mm | slides in, no slop that rattles |
 
-Both pins are **3.0 mm** shafts (the axle and lock pin are interchangeable).
+Axle shaft = **3.0 mm**.
 
-**Also check the lock engagement:** with the paddle deployed to horizontal, the
-paddle and frame lock bores should line up so the lock pin drops straight through
-all three (frame → paddle hub → frame). If they're offset, nudge `lock_angle` or
-`lock_r`. Loaded, the paddle should not rotate — the lock pin takes it in shear.
+**The detent is the unverified part.** The geometry is confirmed (the ball seats
+at 90°), but the **snap force and holding strength depend entirely on the print**
+(finger stiffness + ball squeeze). Deploy the paddle and feel for a positive
+**click into the detent at horizontal**, then check it **holds against a light
+hang** and that you can **push past the click to fold**. Tune with:
+
+| Symptom | Fix |
+|---------|-----|
+| No click / won't hold | **increase** `nub_press` (deeper ball) or **decrease** `finger_w` (softer finger) |
+| Too stiff to deploy/fold, or fingers feel like they'll snap | **decrease** `nub_press` or **increase** `finger_w` |
+| Holds but droops under load | increase `nub_press`, or move `nub_ly` out (bigger arm) |
+| Held angle wobbles | shrink the dimple (`nub_r + 0.1` → `+ 0.05`) |
+
+PETG fingers are springier and more fatigue-tolerant than PLA for the flexing.
 
 ## Procedure
 
@@ -62,7 +71,8 @@ Use `fit_class=slip` and the slip value for the rotating paddle bore. Then
 `recommend_clearance` will return your calibrated numbers, and you can update
 `axle_fit` / `axle_clear` / `paddle_clear` to match.
 
-> Status: **awaiting first print.** Fill in the measured values here once tested:
+> Status: **awaiting first print.** Fill in once tested:
 >
 > - axle_fit (frame, press): `____ mm`  ·  axle_clear (paddle, slip): `____ mm`  ·  paddle_clear: `____ mm`
+> - detent: nub_press `____ mm`  ·  finger_w `____ mm`  ·  feel (click/hold): `____`
 > - printer / material: `____` / `____`  ·  date: `____`

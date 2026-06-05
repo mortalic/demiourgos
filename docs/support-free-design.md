@@ -126,9 +126,15 @@ The ways out — none of which is a bigger stop block:
   second pin through aligned bores to pin it to the frame; pull it to fold. The
   lock bore sits at a radius above the pivot — that radius is the load moment arm,
   so put it as far out as the pocket depth allows.
-- **Over-center / toggle latch**: the deployed rest is just past a hump so the
-  load holds it *into* a stop; you flex past the hump to release. Needs a
-  compliant element — rigid PLA won't snap.
+- **Over-center / compliant detent**: a sprung element snaps into a seat at the
+  deploy angle and resists leaving it; you flex past it to fold. Needs a *compliant*
+  feature — rigid PLA won't snap, so design a deliberate thin flexible finger
+  (≈1–1.5 mm, flexing in its thin direction). A printed **ball detent** at a small
+  radius gives a **soft, wide well** (a 1.2 mm ball at ~5 mm radius frees ≈10–15°),
+  not a crisp lock — fine for light loads, and the snap force is *print-tuned*
+  (finger thickness, ball squeeze, dimple size), so leave those as parameters and
+  expect to tune them on the first print. It holds less than a lock pin; that's the
+  no-loose-parts trade-off.
 - **Solid shelf / gusset**: the arm rests on fixed material (compression), but
   that material can't occupy the fold space, so the part no longer folds flush.
 
