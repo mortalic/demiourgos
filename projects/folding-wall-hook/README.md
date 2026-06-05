@@ -102,6 +102,10 @@ the countersink lips) — inherent and print fine.
 3. Push the axle through the frame, paddle, and frame until the head seats.
 4. Mount the frame to the wall with two M4 screws (countersunk heads sit flush).
 
+The axle's friction fit (and the rotating/pocket clearances) are calibrated-printer
+assumptions — verify them with the short [print-test note](PRINT-TEST.md) before
+trusting them, and `record_outcome` so the engine learns your real numbers.
+
 ## How it was built
 
 Authored in OpenSCAD and iterated with Demiourgos: `compile_check`, `render`
