@@ -4,6 +4,11 @@
       "command": "demiourgos",
       "args": [],
       "env": {}
+    },
+    "think-and-ship": {
+      "command": "think-and-ship",
+      "args": ["serve"],
+      "env": { "THINK_AND_SHIP_PERSIST": "true" }
     }
   }
 }
