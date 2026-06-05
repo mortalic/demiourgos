@@ -72,22 +72,44 @@ impl Mesh {
     }
 
     /// Load from any seekable reader (binary or ASCII STL — `stl_io` autodetects).
+    ///
+    /// Degenerate (zero-area) triangles are silently dropped: OpenSCAD and many
+    /// other exporters emit them routinely, and they carry no geometric
+    /// information. Faces referencing out-of-range vertices make the whole mesh
+    /// [`MeshError::Invalid`].
     pub fn from_stl_reader<R: Read + Seek>(reader: &mut R) -> Result<Mesh, MeshError> {
         let indexed = stl_io::read_stl(reader).map_err(MeshError::Read)?;
-        indexed
-            .validate()
-            .map_err(|e| MeshError::Invalid(e.to_string()))?;
 
-        let vertices = indexed
+        let vertices: Vec<[f64; 3]> = indexed
             .vertices
             .iter()
             .map(|v| [v[0] as f64, v[1] as f64, v[2] as f64])
             .collect();
-        let faces = indexed
-            .faces
-            .iter()
-            .map(|f| [f.vertices[0], f.vertices[1], f.vertices[2]])
-            .collect();
+        let nv = vertices.len();
+
+        let mut faces = Vec::with_capacity(indexed.faces.len());
+        let mut dropped = 0usize;
+        for f in &indexed.faces {
+            let idx = [f.vertices[0], f.vertices[1], f.vertices[2]];
+            if idx.iter().any(|&i| i >= nv) {
+                return Err(MeshError::Invalid(format!(
+                    "face references vertex {} of {nv}",
+                    idx.iter().copied().max().unwrap_or(0)
+                )));
+            }
+            if triangle_area(vertices[idx[0]], vertices[idx[1]], vertices[idx[2]]) <= 1e-12 {
+                dropped += 1;
+                continue;
+            }
+            faces.push(idx);
+        }
+        if dropped > 0 {
+            // stdout is reserved for the MCP transport; this is a stderr trace.
+            eprintln!("demiourgos-mesh: dropped {dropped} degenerate face(s) while loading STL");
+        }
+        if faces.is_empty() {
+            return Err(MeshError::Empty);
+        }
 
         Ok(Mesh { vertices, faces })
     }
@@ -214,6 +236,14 @@ fn cross(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
         a[2] * b[0] - a[0] * b[2],
         a[0] * b[1] - a[1] * b[0],
     ]
+}
+
+/// Area of the triangle (a, b, c).
+fn triangle_area(a: [f64; 3], b: [f64; 3], c: [f64; 3]) -> f64 {
+    let ab = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
+    let ac = [c[0] - a[0], c[1] - a[1], c[2] - a[2]];
+    let n = cross(ab, ac);
+    0.5 * (n[0] * n[0] + n[1] * n[1] + n[2] * n[2]).sqrt()
 }
 
 fn dot(a: [f64; 3], b: [f64; 3]) -> f64 {
