@@ -77,7 +77,8 @@ printf '%s\n' \
 | `export`        | STL/3MF/OFF/AMF/DXF/SVG with `$fn` and binary/ASCII options. |
 | `cross_section` | `projection(cut=true)` slice at axis+offset → 2D image. |
 | `fit_check`     | Intersection volume + per-axis gap + min surface distance; optional profile-aware fit assessment. |
-| `dfm_check`     | Overhang area/steepness, bed-contact footprint, min wall thickness, warnings. |
+| `dfm_check`     | Overhang area/steepness, bed-contact footprint, min wall thickness, warnings, + targeted support-free `support_advice`. |
+| `orientation_advisor` | Score the 6 axis-aligned print orientations by overhang/bed-contact; `Mesh::orientation_scores` in `mesh/dfm.rs`. |
 | `stress_check`  | First-order cantilever-beam strength estimate (not FEA); see `strength.rs`. |
 | `print_check`   | Slice via a PrusaSlicer-family CLI; report time/filament; see `slicer.rs`. |
 | `recommend_clearance` | Per-side clearance for slip/snug/press/snap (± std, confidence) on a printer+material. |
@@ -109,6 +110,24 @@ values. To extend the learning model (e.g. Bayesian optimization), change
 DFM lives in `demiourgos-mesh` (`dfm_report` / `min_wall_thickness`); build
 direction is **+Z**, overhang angle is measured from horizontal (0° = flat
 ceiling, threshold default 45°).
+
+## Support-free design system
+
+Three coordinated pieces help design parts that avoid supports:
+
+- **Knowledge** — `docs/support-free-design.md` is the reference; a condensed
+  version is in the server's `get_info` instructions so the assistant applies the
+  rules by default.
+- **`dfm_check` advice** — `Mesh::dfm_compute` classifies overhangs (flat vs
+  sloped area, a normal-coherence curvature metric) and fills `support_advice`;
+  `orientation_advisor` uses `Mesh::orientation_scores` (6 axis-aligned rotations).
+- **Helper library** — `crates/server/assets/scad/demiourgos_support.scad` is
+  embedded via `include_str!` and auto-installed into each workspace by
+  `Workspace::open` (refreshed when content changes, hidden from `list_models`).
+  Models `use <demiourgos_support.scad>;`.
+
+To extend: add a rule to the doc + instructions, a primitive to the SCAD library,
+and (if detectable) an `support_advice` branch in `dfm_compute`.
 
 ## Conventions
 

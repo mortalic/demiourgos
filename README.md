@@ -53,7 +53,8 @@ renders/viewers also return an image or a file path. Models are referenced by
 |------|--------------|
 | `measure` | Export binary STL → bounding box, volume (mm³), center of mass, triangle count, watertightness. |
 | `fit_check` | Intersection volume, bounding boxes, per-axis gaps, and minimum surface distance between two parts (optional transform on the second); optional tolerance-profile assessment. |
-| `dfm_check` | Unsupported overhang area + steepest overhang, bed-contact footprint, estimated minimum wall thickness, and actionable warnings. |
+| `dfm_check` | Unsupported overhang area + steepest overhang, bed-contact footprint, minimum wall thickness, warnings, **and targeted support-free advice** (chamfer down-fillets, teardrop horizontal holes, reorient…). |
+| `orientation_advisor` | Score the six axis-aligned print orientations by overhang and bed-contact footprint, ranked best first — the cheapest way to avoid supports. |
 | `stress_check` | First-order **cantilever-beam** strength estimate (not FEA): max tip load before yield, plus stress + safety factor for a given load, with material + orientation + infill knockdowns. |
 | `print_check` | Slice via a PrusaSlicer-family CLI and report estimated **print time** and **filament** (length/volume/weight). Needs a slicer + config; degrades cleanly when absent. |
 
@@ -126,6 +127,25 @@ Ideal for standardized geometry like **Gridfinity**: calibrate a material once,
 and every bin afterward uses the learned clearance instead of a guess.
 `record_outcome` also accepts caliper readings (dimensional offsets) and
 qualitative assembly verdicts.
+
+## Designing for support-free printing
+
+Supports waste filament and leave scars when removed, so Demiourgos helps design
+them away. The knowledge lives in three places:
+
+- **The server's instructions** carry the core rules, so the assistant designs
+  with them: keep down-facing surfaces within 45° of vertical, **chamfer**
+  undersides (a down-facing *fillet* is a 90° overhang), **teardrop or hex**
+  horizontal holes, prefer flat bridges, and **reorient before redesigning**.
+- **`dfm_check`** doesn't just flag overhangs — it classifies them (flat ceiling
+  vs curved underside) and returns **targeted advice** (e.g. "curved undersides →
+  chamfer; horizontal holes → teardrop"), and **`orientation_advisor`** finds the
+  best face-down.
+- **`demiourgos_support.scad`** is auto-installed into every workspace; models can
+  `use <demiourgos_support.scad>;` to get `teardrop_hole()`, `hex_hole()`,
+  `support_pin()`, and `chamfer_45()`.
+
+Full reference and citations: [`docs/support-free-design.md`](docs/support-free-design.md).
 
 ## Quickstart
 
