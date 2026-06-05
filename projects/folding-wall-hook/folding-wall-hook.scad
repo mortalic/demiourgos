@@ -1,224 +1,151 @@
-// Folding Wall Hook — parametric, three-part snap-fit recreation of the concept
-// by VC Design (https://www.printables.com/model/1616074-folding-wall-hook).
-// Independent clean-room reimplementation of the mechanism (no original
-// geometry copied).
+// Squared-Oval Folding Wall Hook — an ORIGINAL parametric design by this project.
 //
-// Three parts, no fasteners for the joints:
-//   BASE  — wall plate (countersunk M4 holes) + a vertical post with a snap head.
-//   BODY  — a collet collar that snaps onto the post and ROTATES about it
-//           (vertical axis), carrying a clevis for the hook.
-//   HOOK  — an arm whose trunnion pins snap into the body's clevis and TILT
-//           (horizontal axis): folds flat up, swings down to a load-bearing stop.
+// A flush-folding wall hook: a wall-mounted FRAME with a front pocket, and a
+// PADDLE that nests flush in the pocket when not in use and swings out the bottom
+// to hang things on. Styled with squared-oval (rounded-rectangle) outlines — its
+// own geometry, not derived from any specific third-party model.
 //
-// Frame: wall is the X-Z plane at Y = 0; +Y points into the room, +Z is up.
+// Frame: the squared-oval outline lies in X-Y (X = width, Y = height up the wall);
+// the wall is the X-Y plane at Z = 0 and +Z points out into the room. The paddle
+// pivots on side pins about the X axis.
 
 /* [Which part] */
-part = "assembled";    // [assembled, base, body, hook]
-/* [Preview only] */
-preview_deploy = 90;   // [0:5:120]  hook tilt: 0 folded up, 90 deployed
-preview_swing = 25;    // [-90:5:90] body swivel about the post
+part = "assembled";   // [assembled, frame, paddle]
+// Preview only: 0 = folded flush, 90 = paddle straight out.
+preview_deploy = 80;  // [0:5:95]
 
-/* [Base plate] */
-plate_w = 40;
-plate_h = 72;
-plate_t = 5;
-corner_r = 4;
+/* [Outline] */
+w = 34;        // width  (X)
+h = 68;        // height (Y)
+depth = 13;    // depth from the wall (Z)
+corner = 9;    // outline corner radius — bigger = rounder, smaller = squarer
+
+/* [Frame] */
+back_wall = 3;       // wall-side back thickness (backs the folded paddle)
+side_wall = 6;       // pocket side-wall thickness (must exceed the socket depth)
+top_solid = 26;      // solid upper band (holds the screws), measured from the top
 
 /* [Mounting screws] */
-screw_d = 4.3;
-screw_head_d = 8.4;
-screw_inset = 12;
+screw_d = 4.3;       // M4 clearance
+screw_head_d = 8.0;  // countersink
+screw_gap = 14;      // vertical spacing between the two screws
 
-/* [Swivel post] */
-post_d = 9;           // shaft diameter
-post_y = 16;          // post axis distance from the wall
-post_base_z = 16;     // bottom of the post
-gusset_h = 14;        // bracket height tying the post to the plate (collar rests on it)
-head_extra = 1.6;     // head radius beyond the shaft (snap retention)
-head_h = 3;
-shaft_clear = 0.4;    // collar-lip bore clearance (rotational slip fit)
-chamber_clear = 0.6;  // head-chamber clearance
-lip_h = 3;            // retaining-lip height at the collar bottom
-collar_h = 18;        // collar height
-collar_wall = 2.6;
+/* [Pivot] */
+pin_d = 4;           // paddle trunnion pin
+pin_len = 3.5;       // pin length into each side wall
+pin_clear = 0.25;    // per-side pin/socket clearance (slip)
 
-/* [Hook hinge in the body] */
-arm_w = 16;           // hook arm width
-joint_clear = 0.3;    // per-side gap between arm and ears
-ear_w = 6;            // ear thickness (X)
-pin_d = 5;
-pin_len = 4;
-pin_clear = 0.25;     // per-side pin/socket clearance (slip)
-pivot_fwd = 15;       // pivot axis forward of the post axis (+Y, body frame)
-pivot_up = 1;         // pivot height above collar mid (Z, body frame)
+/* [Paddle] */
+paddle_t = 6;        // paddle thickness
+paddle_clear = 0.4;  // per-side gap between paddle and pocket
+lip = 1.4;           // raised finger-lip to flip the paddle out
 
-/* [Hook arm] */
-arm_len = 34;
-arm_t = 7;
-tip_h = 15;
-
-$fn = 64;
+$fn = 96;
 
 // ---- derived ----
-ear_gap = arm_w + 2 * joint_clear;
-boss_d = pin_d + 7;
-socket_d = pin_d + 2 * pin_clear;
-head_d = post_d + 2 * head_extra;
-lip_bore = post_d + shaft_clear;            // narrow retaining lip rides on the shaft
-chamber_bore = head_d + chamber_clear;      // wide chamber captures the head
-collar_od = chamber_bore + 2 * collar_wall;
-collar_base_z = post_base_z + gusset_h;     // collar rests on the gusset top
-head_z = collar_base_z + lip_h + 1;         // head sits just above the lip
-shaft_top_z = head_z;                       // shaft runs up to the head
+pocket_top = h / 2 - top_solid;          // top of the pocket (Y)
+pocket_w = w - 2 * side_wall;            // pocket width
+pocket_r = max(2, corner - side_wall);   // pocket corner radius
+pocket_front = depth;                     // pocket opens at the front face
+pocket_back = back_wall;                  // pocket floor (paddle nests against it)
+pivot_y = pocket_top - 6;                 // pivot just below the solid band
+pivot_z = depth - paddle_t / 2 - paddle_clear; // pivot centered in the paddle
 
-// ===========================================================================
-// BASE: plate + screws + post
-// ===========================================================================
-module rounded_plate() {
-    hull() for (x = [corner_r - plate_w / 2, plate_w / 2 - corner_r])
-        for (z = [corner_r, plate_h - corner_r])
-            translate([x, 0, z]) rotate([-90, 0, 0]) cylinder(r = corner_r, h = plate_t);
+paddle_w = pocket_w - 2 * paddle_clear;
+paddle_len = (pivot_y - (-h / 2)) - 3;    // reaches near the bottom edge when folded
+
+// 2D squared-oval (rounded rectangle) centered at origin.
+module squared_oval(width, height, r) {
+    offset(r) offset(-r) square([width, height], center = true);
 }
 
-module screw_cut(z) {
-    translate([0, -1, z]) rotate([-90, 0, 0]) cylinder(d = screw_d, h = plate_t + 2);
+// ===========================================================================
+// FRAME
+// ===========================================================================
+module frame_solid() {
+    linear_extrude(depth) squared_oval(w, h, corner);
+}
+
+module pocket_cut() {
+    // Front recess for the paddle. It extends below the frame bottom so the
+    // lower edge is an open slot the paddle can swing out through, and up
+    // through the front face (depth + 1) so the pocket is open at the front.
+    cut_bottom = -h / 2 - 12;
+    cut_h = pocket_top - cut_bottom;
+    cut_cy = (pocket_top + cut_bottom) / 2;
+    translate([0, cut_cy, pocket_back])
+        linear_extrude(depth + 1)
+            squared_oval(pocket_w, cut_h, pocket_r);
+}
+
+module screw_cut(y) {
+    translate([0, y, -1]) cylinder(d = screw_d, h = depth + 2);
     cs = (screw_head_d - screw_d) / 2;
-    translate([0, plate_t - cs + 0.01, z]) rotate([-90, 0, 0])
-        cylinder(d1 = screw_d, d2 = screw_head_d, h = cs + 0.5);
+    translate([0, y, depth - cs + 0.01]) cylinder(d1 = screw_d, d2 = screw_head_d, h = cs + 0.5);
 }
 
-module post() {
-    translate([0, post_y, 0]) {
-        // Vertical shaft up to the head.
-        translate([0, 0, post_base_z]) cylinder(d = post_d, h = shaft_top_z - post_base_z);
-        // Snap head: a chamfered disc the collar lip clicks over. The lower
-        // chamfer is a lead-in; the upper chamfer avoids a degenerate apex.
-        translate([0, 0, head_z]) {
-            translate([0, 0, -1]) cylinder(d1 = post_d, d2 = head_d, h = 1); // lead-in
-            cylinder(d = head_d, h = head_h);
-            translate([0, 0, head_h]) cylinder(d1 = head_d, d2 = post_d * 0.6, h = 1.2);
-        }
-    }
-    // Gusset tying the post base to the plate (a filled wedge for strength).
-    hull() {
-        translate([-post_d / 2, plate_t - 0.1, post_base_z]) cube([post_d, 0.1, gusset_h]);
-        translate([0, post_y, post_base_z]) cylinder(d = post_d, h = gusset_h);
-    }
+module pivot_sockets() {
+    for (s = [-1, 1])
+        translate([s * (pocket_w / 2 + 0.01), pivot_y, pivot_z])
+            rotate([0, -s * 90, 0])
+                cylinder(d = pin_d + 2 * pin_clear, h = pin_len + 0.4);
 }
 
-module base() {
+module frame() {
     difference() {
-        union() {
-            rounded_plate();
-            post();
-        }
-        screw_cut(screw_inset);
-        screw_cut(plate_h - screw_inset);
+        frame_solid();
+        pocket_cut();
+        screw_cut(h / 2 - top_solid / 2 + screw_gap / 2);
+        screw_cut(h / 2 - top_solid / 2 - screw_gap / 2);
+        pivot_sockets();
     }
 }
 
 // ===========================================================================
-// BODY: rotating collar + clevis
+// PADDLE
 // ===========================================================================
-// Modeled in a local frame with the post axis on Z at the origin and the collar
-// running z = 0 .. collar_h. The clevis projects +Y. Placed onto the post by the
-// assembly.
-module clevis_ear(side) {
-    inner_x = side * (ear_gap / 2);
-    lo = min(inner_x, inner_x + side * ear_w);
-    pz = collar_h / 2 + pivot_up;
-    difference() {
-        hull() {
-            // Root embedded into the collar wall for a solid join.
-            translate([lo, collar_od / 2 - 3, pz - 9]) cube([ear_w, 3.5, 18]);
-            translate([lo, pivot_fwd, pz]) rotate([0, 90, 0]) cylinder(d = boss_d, h = ear_w);
-        }
-        translate([inner_x - side * 0.01, pivot_fwd, pz]) rotate([0, side * 90, 0])
-            cylinder(d = socket_d, h = pin_len + 0.6);
-    }
-}
-
-module body_local() {
-    difference() {
-        union() {
-            // Collar tube.
-            cylinder(d = collar_od, h = collar_h);
-            // Clevis ears on the +Y face.
-            clevis_ear(1);
-            clevis_ear(-1);
-        }
-        // Head chamber (wide) above the lip — the head rotates freely here.
-        translate([0, 0, lip_h]) cylinder(d = chamber_bore, h = collar_h);
-        // Retaining lip (narrow) at the bottom, riding on the shaft.
-        translate([0, 0, -0.5]) cylinder(d = lip_bore, h = lip_h + 0.5);
-        // Lead-in chamfer at the bottom mouth so the lip starts onto the head.
-        translate([0, 0, -0.01]) cylinder(d1 = lip_bore + 1.4, d2 = lip_bore, h = 1.4);
-        // Collet slots through the lip so it can flex over the snap head.
-        for (a = [0:120:359])
-            rotate([0, 0, a]) translate([-0.9, 0, -0.5]) cube([1.8, collar_od, lip_h + 4]);
-    }
-}
-
-// ===========================================================================
-// HOOK ARM (tilts in the body clevis)
-// ===========================================================================
-// Distance the heel reaches back from the pivot to butt the collar front.
-heel_back = pivot_fwd - collar_od / 2 - 0.2;
-
-module arm_bar(d) {
-    rotate([0, 90, 0]) cylinder(d = d, h = arm_w, center = true);
-}
-
-module hook_local() {
+// Local frame: pivot at origin; paddle hangs -Y; thickness in Z (front at +Z).
+module paddle_local() {
     union() {
-        arm_bar(boss_d - 1); // pivot hub
-        // Main arm out to the end.
-        hull() {
-            arm_bar(arm_t);
-            translate([0, arm_len, 0]) arm_bar(arm_t);
-        }
-        // Up-turned retaining tip at the very end, curling slightly back.
-        hull() {
-            translate([0, arm_len, 0]) arm_bar(arm_t);
-            translate([0, arm_len - 2, tip_h]) arm_bar(arm_t);
-        }
-        // Heel: a shoulder that butts the collar front to stop at horizontal
-        // under downward load (the arm still folds freely upward).
-        hull() {
-            arm_bar(arm_t);
-            translate([0, -heel_back, -arm_t / 2 + 0.5]) arm_bar(arm_t * 0.8);
-        }
-        // Trunnion pins with a snap lead-in chamfer.
-        for (s = [-1, 1])
-            translate([s * arm_w / 2, 0, 0]) rotate([0, s * 90, 0]) union() {
-                cylinder(d = pin_d, h = pin_len);
-                translate([0, 0, pin_len - 0.8]) cylinder(d1 = pin_d, d2 = pin_d - 1.4, h = 0.8);
+        difference() {
+            union() {
+                // Tongue body.
+                translate([0, -paddle_len / 2, 0])
+                    linear_extrude(paddle_t, center = true)
+                        squared_oval(paddle_w, paddle_len, pocket_r - paddle_clear);
+                // Finger lip near the free end (front side) to flip it out.
+                translate([0, -paddle_len + 7, paddle_t / 2])
+                    linear_extrude(lip)
+                        squared_oval(paddle_w * 0.6, 5, 2);
             }
+            // Hollow the back a touch so it seats flush (and saves plastic).
+        }
+        // Trunnion pins.
+        for (s = [-1, 1])
+            translate([s * paddle_w / 2, 0, 0]) rotate([0, s * 90, 0]) union() {
+                cylinder(d = pin_d, h = pin_len);
+                translate([0, 0, pin_len - 0.7]) cylinder(d1 = pin_d, d2 = pin_d - 1.2, h = 0.7);
+            }
+        // Stop shoulder above the pins: butts the solid band to stop the swing.
+        translate([0, 2.5, 0]) rotate([0, 90, 0])
+            cylinder(d = paddle_t, h = paddle_w, center = true);
     }
 }
 
-// ===========================================================================
-// ASSEMBLY / PART SELECT
-// ===========================================================================
-module body_placed(swing) {
-    translate([0, post_y, collar_base_z]) rotate([0, 0, swing]) children();
+// Place the paddle at the pivot, rotated for the preview deploy angle.
+module paddle_placed(deploy) {
+    translate([0, pivot_y, pivot_z]) rotate([-deploy, 0, 0]) paddle_local();
 }
 
-// In the body local frame, the pivot is at (0, pivot_fwd, collar_h/2 + pivot_up).
-module hook_in_body(deploy) {
-    translate([0, pivot_fwd, collar_h / 2 + pivot_up]) rotate([90 - deploy, 0, 0]) hook_local();
-}
-
-if (part == "base") {
-    rotate([90, 0, 0]) base();          // print plate-down, post up
-} else if (part == "body") {
-    body_local();                        // print collar-axis vertical
-} else if (part == "hook") {
-    rotate([-90, 0, 0]) hook_local();    // print flat on its back
+// ===========================================================================
+// SELECT
+// ===========================================================================
+if (part == "frame") {
+    frame();
+} else if (part == "paddle") {
+    // Lay flat for printing: pivot axis on the bed, tongue in +Y.
+    rotate([90, 0, 0]) paddle_local();
 } else {
-    base();
-    body_placed(preview_swing) {
-        color("SteelBlue") body_local();
-        color("Orange") hook_in_body(preview_deploy);
-    }
+    frame();
+    color("Coral") paddle_placed(preview_deploy);
 }
