@@ -29,57 +29,69 @@ redistributed — this is a deliberately different, original design.
 
 ## Parts
 
-Three printed parts joined by a separate axle:
+Four printed parts: a frame, a paddle, and **two** 3 mm pins (an axle and a lock):
 
 | Part | Role |
 |------|------|
-| **frame** | Squared-oval wall plate with two countersunk M4 holes, a front pocket, and a through pivot bore. |
-| **paddle** | A squared-oval tongue with a through pivot bore; folds flush into the pocket, swings out the bottom to hang things. |
-| **axle** | A small headed pin (or a 3 mm rod / filament / paperclip) that joins the paddle to the frame. |
+| **frame** | Squared-oval wall plate with two countersunk M4 holes, a front pocket, a pivot bore, and a lock bore. |
+| **paddle** | A squared-oval tongue with a pivot bore and an offset lock bore; folds flush into the pocket, swings out to hang things. |
+| **axle** | A 3 mm headed pin (or a 3 mm rod / filament / paperclip) the paddle rotates on. |
+| **lockpin** | A second 3 mm headed pin you drop in to lock the paddle deployed for load. |
 
-Folded, the paddle sits flush in the pocket; flip it out (there's a finger-lip)
-and it swings down/out to ~80° as a peg, backed by the pocket so it holds a load.
+Folded, the paddle sits flush; flip it out (there's a finger-lip), swing it to
+horizontal, and drop the **lock pin** through the aligned bores to hold it for a
+load. Pull the lock pin to fold it away.
 
-**Why a separate axle?** Integral snap-in pins can't actually be inserted here —
-the rigid 6 mm pocket walls won't flex the ~3 mm needed, and there's only ~0.8 mm
-of side play. A separate axle is the printable, assemblable solution: the paddle
-drops in with clearance, then the axle pushes through. (See the repo's
-[design knowledge](../../docs/support-free-design.md#design-for-assembly--printed-hinges-and-pivots).)
+**Why a separate axle *and* a lock pin?** Two findings drove this:
+1. Integral snap-in pins can't be inserted into the rigid pocket (the walls won't
+   flex the ~3 mm needed, with only ~0.8 mm of side play) — so the pivot is a
+   **separate axle**: drop the paddle in, push the axle through.
+2. A single-pivot flush hook **can't hold a downward load on its own** — the load
+   torque always rotates the paddle back toward folded, the same direction it must
+   be free to fold, so any stop that holds the load also blocks folding. The fix
+   is a **drop-in lock pin** that pins the paddle to the frame at the deploy angle.
+
+Both are written up in the repo's
+[design knowledge](../../docs/support-free-design.md#design-for-assembly--printed-hinges-and-pivots).
 
 ## Dimensions (defaults)
 
-- Frame: **34 × 68 × 13 mm**, two M4 countersunk holes.
-- Paddle: ~31 × 43 mm, 6 mm thick.
-- Axle: 3 mm shaft, 6 mm head.
+- Frame: **34 × 68 × 16 mm**, two M4 countersunk holes. (The 16 mm depth gives the
+  lock hub room to clear the pocket back wall as it swings.)
+- Paddle: ~31 × 44 mm, 6 mm thick.
+- Axle & lock pin: 3 mm shaft, 6 mm head each.
+- Lock angle: **90°** (horizontal peg); set by `lock_angle`.
 
 Everything is a parameter at the top of `folding-wall-hook.scad` (a Customizer
-panel in the OpenSCAD GUI) — including `corner`, which sets how squared-off the
-oval is.
+panel in the OpenSCAD GUI) — including `corner`, `lock_angle`, and `lock_r` (the
+lock pin's distance above the pivot = its load moment arm).
 
 ## Clearances
 
-The bores are sized for a 3 mm axle: **0.3 mm per-side** in the paddle (free
-rotation), **0.05 mm per-side** in the frame (friction hold), and **0.4 mm
-per-side** between paddle and pocket. If your printer/material runs tight or
-loose, calibrate once with Demiourgos:
+Sized for 3 mm pins. Rotating axle bore: **0.3 mm per-side** in the paddle (free
+rotation), **0.05 mm per-side** in the frame (friction hold). Lock bores:
+**0.1 mm per-side** in the paddle and **0.075 mm** in the frame (snug, low slop
+under load). Paddle-to-pocket: **0.4 mm per-side**. If your printer/material runs
+tight or loose, calibrate once:
 
 ```
-recommend_clearance  printer=<p> material=<m> fit_class=slip   (or snug for the axle)
+recommend_clearance  printer=<p> material=<m> fit_class=slip   (axle) / snug (lock)
 ```
 
-then set `axle_clear` / `axle_fit` / `paddle_clear`. A fit-test coupon is checked
-in as `pin-fit-coupon.scad` (Demiourgos `gen_fit_coupon`): print it, find the
-tightest hole the axle slips into, and feed that back with `record_outcome`.
+then set `axle_clear` / `axle_fit` / `lock_clear` / `lock_fit` / `paddle_clear`. A
+fit-test coupon (`pin-fit-coupon.scad`, Demiourgos `gen_fit_coupon`) is checked
+in; print it, find the tightest hole the pin slips into, and `record_outcome`.
 
 ## Printing — support-free
 
-All three parts print **without supports** in their built-in orientations
-(verified with Demiourgos `dfm_check` + `orientation_advisor`). Ready-to-slice
-STLs are checked in under [`stl/`](stl/) (`frame.stl`, `paddle.stl`, `axle.stl`).
-To regenerate, set `part` to `"frame"`, `"paddle"`, or `"axle"` and export.
+All four parts print **without supports** in their built-in orientations (verified
+with Demiourgos `dfm_check` + `orientation_advisor` + an `interference` sweep that
+confirms the paddle clears the frame through the whole 0–120° swing). Ready-to-slice
+STLs are in [`stl/`](stl/) (`frame.stl`, `paddle.stl`, `axle.stl`, `lockpin.stl`).
+To regenerate, set `part` and export.
 
-- Suggested: 0.2 mm layers, 3 walls, ≥ 25% infill.
-- PLA or PETG both work; PETG is tougher for a load-bearing paddle.
+- Suggested: 0.2 mm layers, 3 walls, ≥ 25% infill (more for a load-bearing paddle).
+- PLA or PETG both work; PETG is tougher.
 
 The support-free design moves (see
 [`docs/support-free-design.md`](../../docs/support-free-design.md)):
@@ -87,20 +99,24 @@ The support-free design moves (see
 - The **paddle prints flat on its broad face**, so the rounded edges become
   vertical walls and the part gets a big bed footprint.
 - Every horizontal **bore is teardropped** (`use <demiourgos_support.scad>`) — the
-  axle bears on the round part, but the bore's ceiling self-supports.
-- The paddle's **stop is a flat-bottomed block**, not a round bar.
-- The **axle prints standing on its head** (flat disc on the bed, shaft up).
+  pin bears on the round part, but the bore's ceiling self-supports.
+- The **pins print standing on their heads** (flat disc on the bed, shaft up).
 
-The only remaining `dfm_check` flags are feather edges (the teardrop apex tips,
-the countersink lips) — inherent and print fine.
+The only remaining `dfm_check` flags are sub-0.1 mm feather edges (the teardrop
+apex ridges, the countersink lips) — hole features, not structural walls; they
+print fine.
 
 ## Assembly
 
-1. Print **frame**, **paddle**, and **axle** (or use a 3 mm rod / filament /
-   paperclip in place of the printed axle).
-2. Drop the paddle into the frame's pocket and line up the bores.
-3. Push the axle through the frame, paddle, and frame until the head seats.
+1. Print **frame**, **paddle**, **axle**, and **lockpin** (or use two 3 mm rods /
+   filament / paperclips in place of the printed pins).
+2. Drop the paddle into the frame's pocket and line up the pivot bores.
+3. Push the **axle** through frame → paddle → frame until its head seats.
 4. Mount the frame to the wall with two M4 screws (countersunk heads sit flush).
+
+**To use:** flip the paddle out to horizontal (the finger-lip helps), then drop
+the **lock pin** through the aligned lock bores — now it holds a load. Pull the
+lock pin to fold the paddle back flush.
 
 The axle's friction fit (and the rotating/pocket clearances) are calibrated-printer
 assumptions — verify them with the short [print-test note](PRINT-TEST.md) before

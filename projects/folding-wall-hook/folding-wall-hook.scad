@@ -1,33 +1,33 @@
 // Squared-Oval Folding Wall Hook — an ORIGINAL parametric design by this project.
 //
 // A flush-folding wall hook: a wall-mounted FRAME with a front pocket, and a
-// PADDLE that nests flush in the pocket when not in use and swings out the bottom
-// to hang things on. Styled with squared-oval (rounded-rectangle) outlines — its
-// own geometry, not derived from any specific third-party model.
+// PADDLE that nests flush in the pocket when not in use and swings out to hang
+// things on. Squared-oval (rounded-rectangle) outlines — its own geometry, not
+// derived from any specific third-party model.
 //
-// Frame: the squared-oval outline lies in X-Y (X = width, Y = height up the wall);
-// the wall is the X-Y plane at Z = 0 and +Z points out into the room.
+// Pivot + lock: the paddle rotates on a separate AXLE. A single revolute pivot
+// can't hold a downward load on its own (the load torque always drives the
+// paddle back toward folded — the same direction it must be free to fold), so a
+// second drop-in LOCK PIN pins the paddle to the frame at the deploy angle for
+// load. Pull the lock pin to fold flush. Both pins are separate parts (printed
+// dowels, or 3–4 mm rod). See docs/support-free-design.md (Design for assembly).
 //
-// Pivot: a SEPARATE AXLE (a printed headed pin, or a 3 mm rod). The paddle has a
-// through bore and drops into the pocket with clearance; the axle is then pushed
-// through the frame's bores and the paddle's, joining them. This is what makes it
-// actually assemblable — integral snap pins can't flex into a rigid pocket.
-//
-// Support-free: the paddle prints flat on its broad face; all the horizontal
-// bores are teardropped (round where the axle bears, self-supporting ceilings);
-// the axle prints standing on its head. Both shells print without supports.
+// Support-free: the paddle prints flat on its broad face; every horizontal bore
+// is teardropped (round where a pin bears, self-supporting ceiling); the pins
+// print standing on their heads. All shells print without supports.
 
 use <demiourgos_support.scad>;
 
 /* [Which part] */
-part = "assembled";   // [assembled, frame, paddle, axle]
-// Preview only: 0 = folded flush, 90 = paddle straight out.
-preview_deploy = 80;  // [0:5:95]
+part = "assembled";   // [assembled, frame, paddle, axle, lockpin]
+// Preview only: 0 = folded flush, 90 = deployed (and locked).
+preview_deploy = 90;  // [0:5:120]
 
 /* [Outline] */
 w = 34;        // width  (X)
 h = 68;        // height (Y)
-depth = 13;    // depth from the wall (Z)
+depth = 16;    // depth from the wall (Z) — deep enough that the lock hub clears
+               // the pocket back wall when deployed
 corner = 9;    // outline corner radius — bigger = rounder, smaller = squarer
 
 /* [Frame] */
@@ -40,11 +40,20 @@ screw_d = 4.3;       // M4 clearance
 screw_head_d = 8.0;  // countersink
 screw_gap = 14;      // vertical spacing between the two screws
 
-/* [Pivot — separate axle] */
+/* [Pivot axle] */
 axle_d = 3;          // axle diameter (printed pin, or a 3 mm rod / filament / paperclip)
 axle_clear = 0.3;    // per-side clearance in the PADDLE bore (free rotation)
 axle_fit = 0.05;     // per-side clearance in the FRAME bores (friction hold)
-head_d = 6;          // axle head — won't pass through the frame bore
+
+/* [Lock pin] */
+lock_d = 3;          // lock-pin diameter (a 3 mm dowel / rod — same as the axle)
+lock_r = 5;          // lock bore offset above the pivot (the load moment arm)
+lock_angle = 90;     // deploy angle at which the lock bores align (held for load)
+lock_clear = 0.1;    // per-side clearance in the PADDLE lock bore (snug, low slop)
+lock_fit = 0.075;    // per-side clearance in the FRAME lock bores
+
+/* [Pin heads] */
+head_d = 6;
 head_h = 1.6;
 
 /* [Paddle] */
@@ -59,16 +68,28 @@ pocket_top = h / 2 - top_solid;          // top of the pocket (Y)
 pocket_w = w - 2 * side_wall;            // pocket width
 pocket_r = max(2, corner - side_wall);   // pocket corner radius
 pocket_back = back_wall;                  // pocket floor (paddle nests against it)
-pivot_y = pocket_top - 6;                 // pivot just below the solid band
+// Pivot dropped well below the band so the hub has room for BOTH the axle bore
+// and the offset lock bore without poking the solid band when folded.
+pivot_y = pocket_top - 9;
 pivot_z = depth - paddle_t / 2 - paddle_clear; // pivot centered in the paddle
 
 paddle_w = pocket_w - 2 * paddle_clear;
 paddle_len = (pivot_y - (-h / 2)) - 3;    // reaches near the bottom edge when folded
-hub_ext = axle_d / 2 + 3;                 // material above the pivot bore (the hub)
+// Hub reaches just above the lock bore (apex included). Kept short enough that the
+// hub corner clears the pocket back wall as it swings to the deploy angle.
+hub_ext = lock_r + (lock_d + 2 * lock_clear) / 2 + 0.6;
 
 // 2D squared-oval (rounded rectangle) centered at origin.
 module squared_oval(width, height, r) {
     offset(r) offset(-r) square([width, height], center = true);
+}
+
+// A headed dowel that prints standing on its head (flat disc on the bed, shaft
+// up) — fully self-supporting. Used for both the axle and the lock pin.
+module headed_pin(shaft_d, shaft_len, hd = head_d, hh = head_h) {
+    cylinder(d = hd, h = hh);
+    translate([0, 0, hh]) cylinder(d = shaft_d, h = shaft_len);
+    translate([0, 0, hh + shaft_len - 0.6]) cylinder(d1 = shaft_d, d2 = shaft_d - 1.2, h = 0.6);
 }
 
 // ===========================================================================
@@ -79,9 +100,8 @@ module frame_solid() {
 }
 
 module pocket_cut() {
-    // Front recess for the paddle. It extends below the frame bottom so the
-    // lower edge is an open slot the paddle can swing out through, and up
-    // through the front face (depth + 1) so the pocket is open at the front.
+    // Front recess for the paddle, open at the bottom (a slot the paddle swings
+    // through) and at the front face.
     cut_bottom = -h / 2 - 12;
     cut_h = pocket_top - cut_bottom;
     cut_cy = (pocket_top + cut_bottom) / 2;
@@ -96,12 +116,19 @@ module screw_cut(y) {
     translate([0, y, depth - cs + 0.01]) cylinder(d1 = screw_d, d2 = screw_head_d, h = cs + 0.5);
 }
 
+// Through teardrop bores across the full width (apex +Z = up when the frame
+// prints, so the ceiling self-supports).
 module axle_bore_frame() {
-    // One through teardrop bore across the full width for the axle (apex +Z = up
-    // when the frame prints, so the ceiling self-supports). Friction-fit; the
-    // paddle, not the frame, rotates on the axle.
     translate([0, pivot_y, pivot_z]) rotate([0, 0, -90])
         teardrop_hole(d = axle_d + 2 * axle_fit, length = w + 2);
+}
+
+// Lock bores: positioned where the paddle's lock bore lands when deployed to
+// `lock_angle`. Empty until you drop the lock pin in.
+module lock_bore_frame() {
+    p = lock_world(lock_angle);
+    translate([0, p[0], p[1]]) rotate([0, 0, -90])
+        teardrop_hole(d = lock_d + 2 * lock_fit, length = w + 2);
 }
 
 module frame() {
@@ -111,8 +138,15 @@ module frame() {
         screw_cut(h / 2 - top_solid / 2 + screw_gap / 2);
         screw_cut(h / 2 - top_solid / 2 - screw_gap / 2);
         axle_bore_frame();
+        lock_bore_frame();
     }
 }
+
+// World (Y, Z) of the paddle's lock bore (paddle-local (lock_r, 0)) at deploy `d`.
+function lock_world(d) = [
+    pivot_y + lock_r * cos(d),
+    pivot_z - lock_r * sin(d),
+];
 
 // ===========================================================================
 // PADDLE
@@ -121,22 +155,26 @@ module frame() {
 module paddle_local() {
     difference() {
         union() {
-            // Flat plate: tongue + pivot hub in one piece (pivot at the origin,
-            // hub material extends +Y above it).
+            // Flat plate: tongue + pivot hub in one piece (pivot at the origin).
             translate([0, (hub_ext - paddle_len) / 2, 0])
                 linear_extrude(paddle_t, center = true)
                     squared_oval(paddle_w, paddle_len + hub_ext, pocket_r - paddle_clear);
+            // Square off the hub top: the full-width lock bore would otherwise
+            // breach the rounded top corners (zero wall). This keeps full height
+            // across the whole width above the bore.
+            translate([0, (lock_r - 1 + hub_ext) / 2, 0])
+                linear_extrude(paddle_t, center = true)
+                    square([paddle_w, hub_ext - lock_r + 1], center = true);
             // Finger lip near the free (bottom) end to flip it out.
             translate([0, -paddle_len + 7, paddle_t / 2])
                 linear_extrude(lip)
                     squared_oval(paddle_w * 0.6, 5, 2);
-            // Stop block above the pivot: butts the solid band to limit the swing.
-            // A flat block — flat bottom/top, vertical faces — fully self-supporting.
-            translate([0, hub_ext + 1.0, 0]) cube([paddle_w, 2.0, paddle_t], center = true);
         }
-        // Axle bore: a through teardrop hole (apex +Z, self-supporting). The axle
-        // bears on the round part, so the paddle rotates freely.
+        // Axle bore at the pivot (teardrop, apex +Z, self-supporting).
         rotate([0, 0, -90]) teardrop_hole(d = axle_d + 2 * axle_clear, length = paddle_w + 4);
+        // Lock bore, offset `lock_r` above the pivot (the load moment arm).
+        translate([0, lock_r, 0])
+            rotate([0, 0, -90]) teardrop_hole(d = lock_d + 2 * lock_clear, length = paddle_w + 4);
     }
 }
 
@@ -146,33 +184,29 @@ module paddle_placed(deploy) {
 }
 
 // ===========================================================================
-// AXLE
-// ===========================================================================
-// A headed pin. Prints standing on its head (flat disc on the bed, shaft up) so
-// it is fully self-supporting. Push it through the assembled frame + paddle.
-module axle() {
-    shaft_len = w - 0.5;
-    cylinder(d = head_d, h = head_h);
-    translate([0, 0, head_h]) cylinder(d = axle_d, h = shaft_len);
-    // Lead-in tip for easy insertion.
-    translate([0, 0, head_h + shaft_len - 0.6]) cylinder(d1 = axle_d, d2 = axle_d - 1.2, h = 0.6);
-}
-
-// ===========================================================================
 // SELECT
 // ===========================================================================
 if (part == "frame") {
     frame();
 } else if (part == "paddle") {
     // Print flat on the broad face: rounded edges become vertical walls, big bed
-    // contact, and the teardrop bore self-supports with +Z up.
+    // contact, and the teardrop bores self-support with +Z up.
     translate([0, 0, paddle_t / 2]) paddle_local();
 } else if (part == "axle") {
-    axle();
+    headed_pin(axle_d, w - 0.5);
+} else if (part == "lockpin") {
+    headed_pin(lock_d, w - 0.5);
+} else if (part == "interference") {
+    // Diagnostic: overlap of the deployed paddle and frame (sweep preview_deploy).
+    intersection() { frame(); paddle_placed(preview_deploy); }
 } else {
     frame();
     color("Coral") paddle_placed(preview_deploy);
-    // Axle through the pivot (preview), laid along X with the head on the left.
+    // Axle through the pivot.
     color("DimGray") translate([-w / 2 - head_h + 0.5, pivot_y, pivot_z])
-        rotate([0, 90, 0]) axle();
+        rotate([0, 90, 0]) headed_pin(axle_d, w - 0.5);
+    // Lock pin in place when deployed at the lock angle.
+    if (preview_deploy == lock_angle)
+        color("SteelBlue") translate([-w / 2 - head_h + 0.5, pivot_y, pivot_z - lock_r])
+            rotate([0, 90, 0]) headed_pin(lock_d, w - 0.5);
 }

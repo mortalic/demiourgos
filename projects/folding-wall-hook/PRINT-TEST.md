@@ -4,15 +4,22 @@ The pivot clearances are **calibrated-printer assumptions, not yet verified on a
 print**. Run this short test before trusting them, and feed the result back into
 Demiourgos so the next design uses the real numbers.
 
-## The three fits being checked
+## The fits being checked
 
 | Fit | Bore | Per-side clearance | Target feel |
 |-----|------|--------------------|-------------|
 | Axle in **frame** | `axle_d + 2*axle_fit` = **3.10 mm** | 0.05 mm | **friction** — presses in, doesn't back out on its own |
 | Axle in **paddle** | `axle_d + 2*axle_clear` = **3.60 mm** | 0.30 mm | **free rotation** — paddle swings with no bind |
+| Lock pin in **paddle** | `lock_d + 2*lock_clear` = **3.20 mm** | 0.10 mm | **snug** — drops in, minimal slop under load |
+| Lock pin in **frame** | `lock_d + 2*lock_fit` = **3.15 mm** | 0.075 mm | snug, holds the deployed angle |
 | Paddle in **pocket** | — | 0.40 mm | slides in, no slop that rattles |
 
-Axle shaft = **3.0 mm**.
+Both pins are **3.0 mm** shafts (the axle and lock pin are interchangeable).
+
+**Also check the lock engagement:** with the paddle deployed to horizontal, the
+paddle and frame lock bores should line up so the lock pin drops straight through
+all three (frame → paddle hub → frame). If they're offset, nudge `lock_angle` or
+`lock_r`. Loaded, the paddle should not rotate — the lock pin takes it in shear.
 
 ## Procedure
 
