@@ -36,7 +36,7 @@ the deploy angle is held by a built-in detent.
 |------|------|
 | **frame** | Squared-oval wall plate with two countersunk M4 holes, a front pocket, a pivot bore, and two detent dimples in the pocket walls. |
 | **paddle** | A squared-oval tongue with a pivot bore and two flexible detent fingers (each with a ball); folds flush, swings out to hang things. |
-| **axle** | A 3 mm headed pin (or a 3 mm rod / filament / paperclip) the paddle rotates on. |
+| **axle** | A 3 mm headed pin the paddle rotates on. The printed one has a **grip knurl** under the head so it presses into the frame and stays put; a plain 3 mm rod / filament / metal pin works too. |
 
 Folded, the paddle sits flush; flip it out (there's a finger-lip) and it **clicks
 into a detent** at horizontal — push past the click to fold it away. No second

@@ -47,6 +47,8 @@ axle_clear = 0.3;    // per-side clearance in the PADDLE bore (free rotation)
 axle_fit = 0.05;     // per-side clearance in the FRAME bores (friction hold)
 head_d = 6;
 head_h = 1.6;
+knurl_ribs = 10;     // longitudinal grip ribs on the shaft below the head
+knurl_over = 0.2;    // how far each rib stands proud of the shaft (the press grip)
 
 /* [Detent] */
 detent_angle = 90;   // deploy angle the detent holds (horizontal peg)
@@ -86,11 +88,20 @@ module squared_oval(width, height, r) {
     offset(r) offset(-r) square([width, height], center = true);
 }
 
-// A headed dowel that prints standing on its head (self-supporting).
-module headed_pin(shaft_d, shaft_len, hd = head_d, hh = head_h) {
+// A headed dowel that prints standing on its head (self-supporting). A band of
+// longitudinal grip ribs just below the head presses into the frame bore so the
+// pin seats and stays put (the ribs run vertical in the print — no support).
+module headed_pin(shaft_d, shaft_len, hd = head_d, hh = head_h, knurl = false) {
     cylinder(d = hd, h = hh);
     translate([0, 0, hh]) cylinder(d = shaft_d, h = shaft_len);
     translate([0, 0, hh + shaft_len - 0.6]) cylinder(d1 = shaft_d, d2 = shaft_d - 1.2, h = 0.6);
+    if (knurl) {
+        band = min(side_wall - 1, shaft_len - 1);
+        for (i = [0:knurl_ribs - 1])
+            rotate([0, 0, i * 360 / knurl_ribs])
+                translate([shaft_d / 2, 0, hh])
+                    cylinder(d = 2 * knurl_over, h = band, $fn = 12);
+    }
 }
 
 // ===========================================================================
@@ -192,7 +203,7 @@ if (part == "frame") {
     // contact, and the teardrop bore self-supports with +Z up.
     translate([0, 0, paddle_t / 2]) paddle_local();
 } else if (part == "axle") {
-    headed_pin(axle_d, w - 0.5);
+    headed_pin(axle_d, w - 0.5, knurl = true);
 } else if (part == "interference") {
     // Diagnostic: overlap of the deployed paddle and frame (sweep preview_deploy).
     // The detent shows as a small overlap (the ball squeeze) that dips at the
@@ -202,5 +213,5 @@ if (part == "frame") {
     frame();
     color("Coral") paddle_placed(preview_deploy);
     color("DimGray") translate([-w / 2 - head_h + 0.5, pivot_y, pivot_z])
-        rotate([0, 90, 0]) headed_pin(axle_d, w - 0.5);
+        rotate([0, 90, 0]) headed_pin(axle_d, w - 0.5, knurl = true);
 }
