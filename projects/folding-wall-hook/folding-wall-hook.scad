@@ -8,6 +8,12 @@
 // Frame: the squared-oval outline lies in X-Y (X = width, Y = height up the wall);
 // the wall is the X-Y plane at Z = 0 and +Z points out into the room. The paddle
 // pivots on side pins about the X axis.
+//
+// Support-free: the paddle prints flat on its broad face, the frame's pivot
+// sockets are teardropped (the round pin still bears, but the bore self-supports),
+// and the stop is a teardrop bar — so both parts print without supports.
+
+use <demiourgos_support.scad>;
 
 /* [Which part] */
 part = "assembled";   // [assembled, frame, paddle]
@@ -85,10 +91,12 @@ module screw_cut(y) {
 }
 
 module pivot_sockets() {
+    // Teardrop sockets (apex +Z = toward the pocket opening, which is up when the
+    // frame prints): the round pin bears on the round part, the bore self-supports.
     for (s = [-1, 1])
-        translate([s * (pocket_w / 2 + 0.01), pivot_y, pivot_z])
-            rotate([0, -s * 90, 0])
-                cylinder(d = pin_d + 2 * pin_clear, h = pin_len + 0.4);
+        translate([s * (pocket_w / 2 + (pin_len + 0.6) / 2 - 0.3), pivot_y, pivot_z])
+            rotate([0, 0, -90])
+                teardrop_hole(d = pin_d + 2 * pin_clear, length = pin_len + 0.6);
 }
 
 module frame() {
@@ -127,8 +135,9 @@ module paddle_local() {
                 translate([0, 0, pin_len - 0.7]) cylinder(d1 = pin_d, d2 = pin_d - 1.2, h = 0.7);
             }
         // Stop shoulder above the pins: butts the solid band to stop the swing.
-        translate([0, 2.5, 0]) rotate([0, 90, 0])
-            cylinder(d = paddle_t, h = paddle_w, center = true);
+        // A flat block flush with the tongue's underside — flat bottom, flat top,
+        // vertical faces, so it is fully self-supporting when the paddle prints flat.
+        translate([0, 2.0, 0]) cube([paddle_w, 2.0, paddle_t], center = true);
     }
 }
 
@@ -143,8 +152,9 @@ module paddle_placed(deploy) {
 if (part == "frame") {
     frame();
 } else if (part == "paddle") {
-    // Lay flat for printing: pivot axis on the bed, tongue in +Y.
-    rotate([90, 0, 0]) paddle_local();
+    // Print flat on the broad face (the rounded edges become vertical walls, the
+    // pins lie horizontal, big bed contact). +Z is up for the stop/pin teardrops.
+    translate([0, 0, paddle_t / 2]) paddle_local();
 } else {
     frame();
     color("Coral") paddle_placed(preview_deploy);
