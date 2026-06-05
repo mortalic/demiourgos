@@ -18,6 +18,21 @@ pub fn defines_from_map(overrides: &BTreeMap<String, Value>) -> Vec<Define> {
         .collect()
 }
 
+/// Render a single JSON value as an OpenSCAD expression string (public wrapper).
+pub fn scad_value(value: &Value) -> String {
+    scad_expr(value)
+}
+
+/// A compact human label for a JSON value (numbers/strings bare, no quotes).
+pub fn value_label(value: &Value) -> String {
+    match value {
+        Value::String(s) => s.clone(),
+        Value::Number(n) => n.to_string(),
+        Value::Bool(b) => b.to_string(),
+        other => other.to_string(),
+    }
+}
+
 /// Render a JSON value as an OpenSCAD expression string.
 fn scad_expr(value: &Value) -> String {
     match value {

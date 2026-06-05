@@ -1,7 +1,7 @@
 //! The Demiourgos MCP server: state and the full tool surface.
 
 use std::collections::BTreeMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use demiourgos_mesh::Mesh;
 use demiourgos_scad::{Define, ExportFormat, OpenScad, RenderOptions, RunOutput, View};
@@ -199,6 +199,31 @@ impl Demiourgos {
         let bytes = std::fs::read(opts.output_png)
             .map_err(|e| internal(format!("failed to read rendered PNG: {e}")))?;
         Ok(Ok(bytes))
+    }
+
+    /// Render a model variant straight to a decoded RGBA image.
+    #[allow(clippy::too_many_arguments)]
+    async fn render_rgba(
+        &self,
+        model_path: &Path,
+        out_png: &Path,
+        view: View,
+        width: u32,
+        height: u32,
+        fn_: Option<u32>,
+        defines: &[Define],
+    ) -> Result<Result<image::RgbaImage, RunOutput>, McpError> {
+        let mut opts = RenderOptions::for_view(model_path, out_png, view);
+        opts.width = width;
+        opts.height = height;
+        opts.fn_ = fn_;
+        opts.defines = defines;
+        match self.render_one(&opts).await? {
+            Ok(bytes) => Ok(Ok(image::load_from_memory(&bytes)
+                .map_err(|e| internal(format!("failed to decode render: {e}")))?
+                .to_rgba8())),
+            Err(run) => Ok(Err(run)),
+        }
     }
 }
 
@@ -1383,6 +1408,273 @@ impl Demiourgos {
             }),
         ))
     }
+
+    #[tool(
+        description = "Render a model across several values of one variable and composite the \
+                       results into a single labeled grid — a customizer preset grid or tolerance \
+                       contact sheet. Great for previewing how a parameter changes the shape."
+    )]
+    async fn param_sweep(
+        &self,
+        Parameters(args): Parameters<ParamSweepArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let name = self.require_model(&args.name)?;
+        let model_path = self.workspace.model_path(&name);
+        if args.values.is_empty() {
+            return Err(invalid("`values` must not be empty"));
+        }
+        if args.values.len() > 36 {
+            return Err(invalid("too many values (max 36)"));
+        }
+        let view = match &args.view {
+            Some(v) => parse_view(v).map_err(invalid)?,
+            None => View::Iso,
+        };
+        let width = args.width.unwrap_or(360);
+        let height = args.height.unwrap_or(360);
+        let base_defines = self.defines(&args.defines);
+
+        let mut cells = Vec::new();
+        for (i, val) in args.values.iter().enumerate() {
+            let mut defs = base_defines.clone();
+            defs.push(Define::new(args.parameter.clone(), params::scad_value(val)));
+            let out = self
+                .workspace
+                .artifact_path(&format!("{}_sweep_{i}.png", name.stem()));
+            match self
+                .render_rgba(&model_path, &out, view, width, height, args.fn_n, &defs)
+                .await?
+            {
+                Ok(img) => cells.push(Cell {
+                    label: format!("{}={}", args.parameter, params::value_label(val)),
+                    image: img,
+                }),
+                Err(run) => {
+                    return Ok(json_error(
+                        failure_summary("render", &run),
+                        failure_payload("render", &run),
+                    ))
+                }
+            }
+        }
+
+        let sheet = render::contact_sheet(&cells);
+        let png = encode_png(&sheet)?;
+        let out = self
+            .workspace
+            .artifact_path(&format!("{}_sweep.png", name.stem()));
+        std::fs::write(&out, &png).map_err(|e| internal(format!("failed to write sweep: {e}")))?;
+
+        Ok(image_result(
+            format!(
+                "Swept {} over {} value(s) of '{}'",
+                name.file_name(),
+                args.values.len(),
+                args.parameter
+            ),
+            base64_encode(&png),
+            json!({
+                "model": name.file_name(),
+                "parameter": args.parameter,
+                "values": args.values,
+                "path": out.display().to_string(),
+            }),
+        ))
+    }
+
+    #[tool(
+        description = "Visually diff two variants of a model (e.g. before/after a parameter change): \
+                       render both from the same view, highlight the changed pixels in red, and \
+                       report how much changed. Returns an A | B | diff panel."
+    )]
+    async fn visual_diff(
+        &self,
+        Parameters(args): Parameters<VisualDiffArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let name_a = self.require_model(&args.name)?;
+        let name_b = match &args.name_b {
+            Some(n) => self.require_model(n)?,
+            None => name_a.clone(),
+        };
+        let view = match &args.view {
+            Some(v) => parse_view(v).map_err(invalid)?,
+            None => View::Iso,
+        };
+        let width = args.width.unwrap_or(400);
+        let height = args.height.unwrap_or(400);
+        let defs_a = self.defines(&args.defines_a);
+        let defs_b = self.defines(&args.defines_b);
+
+        let out_a = self
+            .workspace
+            .artifact_path(&format!("{}_diff_a.png", name_a.stem()));
+        let a = match self
+            .render_rgba(
+                &self.workspace.model_path(&name_a),
+                &out_a,
+                view,
+                width,
+                height,
+                args.fn_n,
+                &defs_a,
+            )
+            .await?
+        {
+            Ok(img) => img,
+            Err(run) => {
+                return Ok(json_error(
+                    failure_summary("render A", &run),
+                    failure_payload("render", &run),
+                ))
+            }
+        };
+        let out_b = self
+            .workspace
+            .artifact_path(&format!("{}_diff_b.png", name_b.stem()));
+        let b = match self
+            .render_rgba(
+                &self.workspace.model_path(&name_b),
+                &out_b,
+                view,
+                width,
+                height,
+                args.fn_n,
+                &defs_b,
+            )
+            .await?
+        {
+            Ok(img) => img,
+            Err(run) => {
+                return Ok(json_error(
+                    failure_summary("render B", &run),
+                    failure_payload("render", &run),
+                ))
+            }
+        };
+
+        let (diff, frac) = render::diff_image(&a, &b, 24);
+        let cells = vec![
+            Cell {
+                label: "A (before)".into(),
+                image: a,
+            },
+            Cell {
+                label: "B (after)".into(),
+                image: b,
+            },
+            Cell {
+                label: "diff".into(),
+                image: diff,
+            },
+        ];
+        let sheet = render::grid_sheet(&cells, 3);
+        let png = encode_png(&sheet)?;
+        let out = self
+            .workspace
+            .artifact_path(&format!("{}_diff.png", name_a.stem()));
+        std::fs::write(&out, &png).map_err(|e| internal(format!("failed to write diff: {e}")))?;
+
+        Ok(image_result(
+            format!(
+                "{} vs {}: {:.2}% of pixels changed",
+                name_a.file_name(),
+                name_b.file_name(),
+                frac * 100.0
+            ),
+            base64_encode(&png),
+            json!({
+                "model_a": name_a.file_name(),
+                "model_b": name_b.file_name(),
+                "changed_fraction": frac,
+                "path": out.display().to_string(),
+            }),
+        ))
+    }
+
+    #[tool(
+        description = "Discover installed OpenSCAD libraries (e.g. BOSL2): report the library search \
+                       paths, which libraries are present, and — for a named library — its modules \
+                       and functions, optionally filtered by a search substring."
+    )]
+    async fn library_info(
+        &self,
+        Parameters(args): Parameters<LibraryInfoArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let scad = self.scad()?;
+        let paths = &scad.library_paths;
+
+        // Top-level: which library folders exist under each search path.
+        let mut libraries: Vec<Value> = Vec::new();
+        for dir in paths {
+            if let Ok(entries) = std::fs::read_dir(dir) {
+                for e in entries.flatten() {
+                    if e.file_type().map(|t| t.is_dir()).unwrap_or(false) {
+                        if let Some(n) = e.file_name().to_str() {
+                            libraries
+                                .push(json!({ "name": n, "path": e.path().display().to_string() }));
+                        }
+                    }
+                }
+            }
+        }
+
+        // Optional deep dive into one library: list modules/functions.
+        let mut modules: Vec<String> = Vec::new();
+        let mut functions: Vec<String> = Vec::new();
+        if let Some(lib) = &args.library {
+            let lib_dir = paths.iter().map(|p| p.join(lib)).find(|p| p.is_dir());
+            match lib_dir {
+                Some(dir) => {
+                    let mut files = Vec::new();
+                    collect_scad_files(&dir, &mut files, 0, 400);
+                    let filter = args.search.as_deref().map(|s| s.to_ascii_lowercase());
+                    for f in &files {
+                        if let Ok(src) = std::fs::read_to_string(f) {
+                            scan_defs(&src, &filter, &mut modules, &mut functions);
+                        }
+                    }
+                    modules.sort();
+                    modules.dedup();
+                    modules.truncate(300);
+                    functions.sort();
+                    functions.dedup();
+                    functions.truncate(300);
+                }
+                None => {
+                    return Err(invalid(format!(
+                        "library '{lib}' not found under the OpenSCAD library paths"
+                    )))
+                }
+            }
+        }
+
+        let summary = if let Some(lib) = &args.library {
+            format!(
+                "{lib}: {} module(s), {} function(s){}",
+                modules.len(),
+                functions.len(),
+                args.search
+                    .as_deref()
+                    .map(|s| format!(" matching '{s}'"))
+                    .unwrap_or_default()
+            )
+        } else {
+            format!(
+                "{} librar(ies) found across the search paths",
+                libraries.len()
+            )
+        };
+
+        Ok(json_result(
+            summary,
+            json!({
+                "library_paths": paths.iter().map(|p| p.display().to_string()).collect::<Vec<_>>(),
+                "libraries": libraries,
+                "modules": modules,
+                "functions": functions,
+            }),
+        ))
+    }
 }
 
 #[tool_handler]
@@ -1600,4 +1892,133 @@ pub struct ViewArgs {
     /// Optional variable overrides passed via `-D`.
     #[serde(default)]
     pub defines: Overrides,
+}
+
+// ===========================================================================
+// param_sweep / visual_diff / library_info argument types and helpers
+// ===========================================================================
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct ParamSweepArgs {
+    /// Model name.
+    pub name: String,
+    /// Variable to sweep (passed via `-D <parameter>=<value>` per cell).
+    pub parameter: String,
+    /// Values to render — numbers or strings (max 36).
+    pub values: Vec<Value>,
+    /// View for every cell (default iso).
+    #[serde(default)]
+    pub view: Option<String>,
+    /// Per-cell image width (default 360).
+    #[serde(default)]
+    pub width: Option<u32>,
+    /// Per-cell image height (default 360).
+    #[serde(default)]
+    pub height: Option<u32>,
+    /// Optional `$fn` override.
+    #[serde(default, rename = "fn")]
+    pub fn_n: Option<u32>,
+    /// Other fixed variable overrides applied to every cell.
+    #[serde(default)]
+    pub defines: Overrides,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct VisualDiffArgs {
+    /// Model name (variant A; also B unless `name_b` is given).
+    pub name: String,
+    /// Optional second model to compare against (defaults to `name`).
+    #[serde(default)]
+    pub name_b: Option<String>,
+    /// Variable overrides for variant A.
+    #[serde(default)]
+    pub defines_a: Overrides,
+    /// Variable overrides for variant B.
+    #[serde(default)]
+    pub defines_b: Overrides,
+    /// View for both renders (default iso).
+    #[serde(default)]
+    pub view: Option<String>,
+    /// Image width (default 400).
+    #[serde(default)]
+    pub width: Option<u32>,
+    /// Image height (default 400).
+    #[serde(default)]
+    pub height: Option<u32>,
+    /// Optional `$fn` override.
+    #[serde(default, rename = "fn")]
+    pub fn_n: Option<u32>,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct LibraryInfoArgs {
+    /// Optional library to inspect (e.g. "BOSL2"); omit to just list libraries.
+    #[serde(default)]
+    pub library: Option<String>,
+    /// Optional substring filter for module/function names.
+    #[serde(default)]
+    pub search: Option<String>,
+}
+
+/// Recursively collect `.scad` files under `dir`, bounded by depth and count.
+fn collect_scad_files(dir: &Path, out: &mut Vec<PathBuf>, depth: usize, cap: usize) {
+    if depth > 4 || out.len() >= cap {
+        return;
+    }
+    if let Ok(entries) = std::fs::read_dir(dir) {
+        for e in entries.flatten() {
+            if out.len() >= cap {
+                return;
+            }
+            let p = e.path();
+            if p.is_dir() {
+                collect_scad_files(&p, out, depth + 1, cap);
+            } else if p.extension().and_then(|x| x.to_str()) == Some("scad") {
+                out.push(p);
+            }
+        }
+    }
+}
+
+/// Identifier that precedes a `(` (an OpenSCAD module/function name).
+fn ident_before_paren(s: &str) -> Option<String> {
+    let name: String = s
+        .chars()
+        .take_while(|c| c.is_alphanumeric() || *c == '_')
+        .collect();
+    if name.is_empty() {
+        None
+    } else {
+        Some(name)
+    }
+}
+
+/// Scan SCAD source for `module`/`function` definitions, applying an optional
+/// lowercase substring filter.
+fn scan_defs(
+    src: &str,
+    filter: &Option<String>,
+    modules: &mut Vec<String>,
+    functions: &mut Vec<String>,
+) {
+    let keep = |name: &str| match filter {
+        Some(f) => name.to_ascii_lowercase().contains(f),
+        None => true,
+    };
+    for line in src.lines() {
+        let t = line.trim_start();
+        if let Some(rest) = t.strip_prefix("module ") {
+            if let Some(name) = ident_before_paren(rest.trim_start()) {
+                if keep(&name) {
+                    modules.push(name);
+                }
+            }
+        } else if let Some(rest) = t.strip_prefix("function ") {
+            if let Some(name) = ident_before_paren(rest.trim_start()) {
+                if keep(&name) {
+                    functions.push(name);
+                }
+            }
+        }
+    }
 }

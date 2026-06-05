@@ -30,11 +30,18 @@ fn grid_dims(n: usize) -> (u32, u32) {
     (cols, rows)
 }
 
-/// Composite cells into a single labeled grid image. All cell images are
-/// assumed to share the dimensions of the first cell; mismatched cells are
-/// drawn clipped at the top-left.
+/// Composite cells into a single labeled grid image, choosing a roughly square
+/// layout. All cell images are assumed to share the dimensions of the first
+/// cell; mismatched cells are drawn clipped at the top-left.
 pub fn contact_sheet(cells: &[Cell]) -> RgbaImage {
-    let (cols, rows) = grid_dims(cells.len());
+    let (cols, _) = grid_dims(cells.len());
+    grid_sheet(cells, cols)
+}
+
+/// Composite cells into a labeled grid with an explicit number of columns.
+pub fn grid_sheet(cells: &[Cell], cols: u32) -> RgbaImage {
+    let cols = cols.max(1);
+    let rows = (cells.len() as u32).max(1).div_ceil(cols);
 
     let (cell_w, cell_h) = cells
         .first()
@@ -81,6 +88,36 @@ pub fn contact_sheet(cells: &[Cell]) -> RgbaImage {
     }
 
     canvas
+}
+
+/// Produce a diff visualization of `a` vs `b`: pixels differing by more than
+/// `threshold` (per-channel, 0-255) are tinted red over a dimmed grayscale of
+/// `b`. Returns the image and the fraction of compared pixels that changed.
+pub fn diff_image(a: &RgbaImage, b: &RgbaImage, threshold: u8) -> (RgbaImage, f64) {
+    let w = a.width().min(b.width());
+    let h = a.height().min(b.height());
+    let mut out = RgbaImage::from_pixel(w.max(1), h.max(1), Rgba([28, 28, 32, 255]));
+    let mut changed = 0u64;
+    for y in 0..h {
+        for x in 0..w {
+            let pa = a.get_pixel(x, y).0;
+            let pb = b.get_pixel(x, y).0;
+            let d = (0..3)
+                .map(|k| (pa[k] as i32 - pb[k] as i32).unsigned_abs())
+                .max()
+                .unwrap_or(0);
+            if d as u8 > threshold {
+                changed += 1;
+                out.put_pixel(x, y, Rgba([235, 60, 60, 255]));
+            } else {
+                let g = (((pb[0] as u32 + pb[1] as u32 + pb[2] as u32) / 3) as u8 / 2)
+                    .saturating_add(18);
+                out.put_pixel(x, y, Rgba([g, g, g, 255]));
+            }
+        }
+    }
+    let frac = changed as f64 / (w as u64 * h as u64).max(1) as f64;
+    (out, frac)
 }
 
 #[cfg(test)]
