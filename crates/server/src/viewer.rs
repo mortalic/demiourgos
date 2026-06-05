@@ -174,7 +174,14 @@ mod tests {
         assert!(!html.contains("http://"));
         assert!(!html.contains("https://"));
         // No leftover placeholders.
-        for ph in ["__THREE_B64__", "__ORBIT_B64__", "__STLLOADER_B64__", "__MODEL_B64__", "__TITLE__", "__THEME__"] {
+        for ph in [
+            "__THREE_B64__",
+            "__ORBIT_B64__",
+            "__STLLOADER_B64__",
+            "__MODEL_B64__",
+            "__TITLE__",
+            "__THEME__",
+        ] {
             assert!(!html.contains(ph), "leftover placeholder {ph}");
         }
     }
