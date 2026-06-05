@@ -11,6 +11,7 @@ mod params;
 mod render;
 mod result;
 mod server;
+mod viewer;
 mod workspace;
 
 use anyhow::Context;

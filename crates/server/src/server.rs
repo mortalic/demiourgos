@@ -1310,6 +1310,79 @@ impl Demiourgos {
             serde_json::to_value(&report).unwrap_or(json!({})),
         ))
     }
+
+    #[tool(
+        description = "Build an interactive 3D viewer for a model: export the mesh and write a \
+                       self-contained HTML page (Three.js) you can open in a browser to orbit, \
+                       zoom, and inspect the actual geometry. Returns the HTML file path. Use this \
+                       to *show* a model interactively; use `render` for inline still images."
+    )]
+    async fn view_3d(
+        &self,
+        Parameters(args): Parameters<ViewArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let name = self.require_model(&args.name)?;
+        let defines = self.defines(&args.defines);
+        let stl = self
+            .workspace
+            .artifact_path(&format!("{}.view.stl", name.stem()));
+        let run = self.export_stl(&name, &stl, args.fn_n, &defines).await?;
+        if !run.success || !stl.is_file() {
+            return Ok(json_error(
+                failure_summary("export", &run),
+                failure_payload("export", &run),
+            ));
+        }
+
+        let bytes =
+            std::fs::read(&stl).map_err(|e| internal(format!("failed to read STL: {e}")))?;
+        let analysis = Mesh::from_stl_path(&stl)
+            .ok()
+            .and_then(|m| m.analyze().ok());
+        let meta = match &analysis {
+            Some(a) => format!(
+                "{:.1} × {:.1} × {:.1} mm · {} triangles · {}",
+                a.bounding_box.size[0],
+                a.bounding_box.size[1],
+                a.bounding_box.size[2],
+                a.triangle_count,
+                if a.watertight {
+                    "watertight"
+                } else {
+                    "not watertight"
+                }
+            ),
+            None => format!("{} (mesh analysis unavailable)", name.file_name()),
+        };
+        let theme = args
+            .color
+            .as_deref()
+            .map(|c| c.trim_start_matches('#').to_string())
+            .filter(|c| c.len() == 6 && c.chars().all(|ch| ch.is_ascii_hexdigit()))
+            .unwrap_or_else(|| "d9a441".to_string());
+
+        let html =
+            crate::viewer::viewer_html(name.file_name(), &meta, &base64_encode(&bytes), &theme);
+        let out = self
+            .workspace
+            .artifact_path(&format!("{}.view.html", name.stem()));
+        std::fs::write(&out, &html)
+            .map_err(|e| internal(format!("failed to write viewer: {e}")))?;
+
+        Ok(json_result(
+            format!(
+                "Interactive 3D viewer for {} — open in a browser:\n{}",
+                name.file_name(),
+                out.display()
+            ),
+            json!({
+                "model": name.file_name(),
+                "viewer_html": out.display().to_string(),
+                "open_url": format!("file://{}", out.display()),
+                "meta": meta,
+            }),
+        ))
+    }
 }
 
 #[tool_handler]
@@ -1506,6 +1579,21 @@ pub struct DfmArgs {
     /// Overhang threshold in degrees from horizontal (default 45).
     #[serde(default)]
     pub overhang_threshold_deg: Option<f64>,
+    /// Optional `$fn` override.
+    #[serde(default, rename = "fn")]
+    pub fn_n: Option<u32>,
+    /// Optional variable overrides passed via `-D`.
+    #[serde(default)]
+    pub defines: Overrides,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct ViewArgs {
+    /// Model name.
+    pub name: String,
+    /// Optional surface color as a hex string (e.g. "#2e9bd6"); defaults to a warm filament tone.
+    #[serde(default)]
+    pub color: Option<String>,
     /// Optional `$fn` override.
     #[serde(default, rename = "fn")]
     pub fn_n: Option<u32>,
