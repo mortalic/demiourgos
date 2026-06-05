@@ -192,11 +192,14 @@ a checked-in `.mcp.json`):
   rectangular cantilever with a tip load and applies FDM knockdowns; use it to
   *size* hooks/brackets, not to certify safety-critical parts.
 - **`print_check` needs a slicer config.** Slicing requires printer/print/filament
-  presets — accurate **weight** in particular needs the filament *density*. A
-  ready-made generic PLA config (0.4 mm nozzle, 1.75 mm filament, 1 kg spool) ships
-  at [`slicer/pla-0.4-1.75.ini`](slicer/pla-0.4-1.75.ini); set
-  `DEMIOURGOS_SLICER_CONFIG` to it (or pass `config`). The file lists density +
-  temperatures for other materials. Without a slicer it reports `available: false`.
+  presets — accurate **weight** in particular needs the filament *density*.
+  Ready-made PLA configs (0.4 mm nozzle, 1.75 mm filament, 1 kg spool) ship under
+  [`slicer/`](slicer/): a generic `pla-0.4-1.75.ini` plus per-printer build
+  volumes `prusaxl-pla-0.4-1.75.ini` (360³) and `troodon300-pla-0.4-1.75.ini`
+  (300×300×400). Set `DEMIOURGOS_SLICER_CONFIG` to one (or pass `config`); each
+  lists density + temperatures for other materials. For the most accurate Prusa
+  numbers, export your real PrusaSlicer system profile and point at that instead.
+  Without a slicer it reports `available: false`.
 
 ## Security note
 
