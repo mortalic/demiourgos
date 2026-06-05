@@ -1,13 +1,13 @@
 // Demiourgos fit-test coupon — generated.
 // Print once. For each labeled hole, try the reference peg; the tightest
 // hole that gives the fit you want is your calibrated per-side clearance.
-peg_d      = 4;
+peg_d      = 3;
 plate_t    = 4;
-clearances = [0.1, 0.15, 0.2, 0.25, 0.3, 0.35];
-pitch      = 10.7;
+clearances = [0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4];
+pitch      = 9.8;
 n          = len(clearances);
-plate_w    = 64.19999999999999;
-plate_h    = 11.2;
+plate_w    = 78.4;
+plate_h    = 8.399999999999999;
 label_size = 3;
 
 module coupon_plate() {
