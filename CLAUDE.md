@@ -71,15 +71,21 @@ printf '%s\n' \
 | `compile_check` | Cheap inner-loop validation (`-o tmp.csg`); errors/warnings + ECHO. |
 | `render`        | PNG of a named view, or a labeled contact sheet from `views[]`. |
 | `view_3d`       | Offline self-contained Three.js HTML viewer of the exported mesh (orbit/zoom). Three.js is vendored under `crates/server/assets/three/` (MIT) and inlined via `include_str!`. |
+| `param_sweep`   | Render a model across N values of one variable into a labeled grid. |
+| `visual_diff`   | Render two variants from one view; highlight changed pixels (A \| B \| diff). |
 | `measure`       | Export binary STL → bbox, volume, COM, triangle count, watertight. |
 | `export`        | STL/3MF/OFF/AMF/DXF/SVG with `$fn` and binary/ASCII options. |
 | `cross_section` | `projection(cut=true)` slice at axis+offset → 2D image. |
 | `fit_check`     | Intersection volume + per-axis gap + min surface distance; optional profile-aware fit assessment. |
 | `dfm_check`     | Overhang area/steepness, bed-contact footprint, min wall thickness, warnings. |
-| `recommend_clearance` | Per-side clearance for slip/snug/press/snap on a printer+material. |
+| `stress_check`  | First-order cantilever-beam strength estimate (not FEA); see `strength.rs`. |
+| `print_check`   | Slice via a PrusaSlicer-family CLI; report time/filament; see `slicer.rs`. |
+| `recommend_clearance` | Per-side clearance for slip/snug/press/snap (± std, confidence) on a printer+material. |
 | `gen_fit_coupon` | Write a one-print fit-test coupon to calibrate a profile. |
-| `record_outcome` | Log a coupon/caliper/fit outcome → recalibrate a profile. |
+| `suggest_coupon` | Active learning: write the next coupon centered on the estimate ± its uncertainty. |
+| `record_outcome` | Log a coupon/caliper/fit outcome → recalibrate a profile (Bayesian). |
 | `get_profile` / `list_profiles` / `set_profile` | Read/edit tolerance profiles. |
+| `library_info`  | List OpenSCAD library paths/libraries; a named library's modules/functions. |
 
 Tools return a human-readable text summary **and** a `structuredContent` JSON
 payload; renders additionally return base64 PNG image content.
