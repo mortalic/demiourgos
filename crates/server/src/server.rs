@@ -1099,22 +1099,106 @@ impl Demiourgos {
             .effective(&args.printer, &args.material, nozzle)
             .map_err(|e| internal(e.to_string()))?;
         let clearance = p.clearance(class);
+        let std = p.clearance_std(class);
+        let confidence = if std <= 0.025 {
+            "high"
+        } else if std <= 0.06 {
+            "medium"
+        } else {
+            "low"
+        };
         Ok(json_result(
             format!(
-                "{} {} fit: {:.3} mm/side ({}) — hole = peg + {:.3} mm diametral",
+                "{} {} fit: {:.3} ± {:.3} mm/side ({}, {} confidence) — hole = peg + {:.3} mm diametral",
                 p.key(),
                 class,
                 clearance,
+                std,
                 source_str(&p),
+                confidence,
                 clearance * 2.0
             ),
             json!({
                 "profile_id": p.key(),
                 "fit_class": class.to_string(),
                 "clearance_per_side_mm": clearance,
+                "clearance_std_mm": std,
+                "confidence": confidence,
                 "clearance_diametral_mm": clearance * 2.0,
                 "source": source_str(&p),
                 "samples": p.samples,
+            }),
+        ))
+    }
+
+    #[tool(
+        description = "Active learning: suggest and generate the NEXT fit-test coupon for a fit class, \
+                       centered on the current estimate and widened by its uncertainty so each print \
+                       converges the calibration. Writes the coupon model and returns the proposed \
+                       clearance range and rationale."
+    )]
+    async fn suggest_coupon(
+        &self,
+        Parameters(args): Parameters<SuggestCouponArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let nozzle = nozzle_or_default(args.nozzle_mm);
+        let class: FitClass = args.fit_class.parse().map_err(invalid)?;
+        let p = self
+            .store
+            .effective(&args.printer, &args.material, nozzle)
+            .map_err(|e| internal(e.to_string()))?;
+        let s = demiourgos_tolerance::suggest_coupon_range(&p, class);
+
+        let clearances = clearance_steps(s.min_mm, s.max_mm, s.step_mm);
+        if clearances.is_empty() {
+            return Err(internal(
+                "could not build a coupon range from the suggestion",
+            ));
+        }
+        let default_spec = CouponSpec::default();
+        let peg = args.peg_diameter_mm.unwrap_or(default_spec.peg_diameter_mm);
+        let spec = CouponSpec {
+            peg_diameter_mm: peg,
+            clearances_mm: clearances.clone(),
+            plate_thickness_mm: default_spec.plate_thickness_mm,
+        };
+        let scad = coupon_scad(&spec);
+
+        let raw_name = args
+            .name
+            .clone()
+            .unwrap_or_else(|| format!("{}_{}_coupon", args.material.to_ascii_lowercase(), class));
+        let name = Workspace::validate_name(&raw_name).map_err(invalid)?;
+        let path = self
+            .workspace
+            .write_model(&name, &scad)
+            .map_err(|e| internal(format!("failed to write coupon: {e}")))?;
+        self.store
+            .register(&args.printer, &args.material, nozzle)
+            .map_err(|e| internal(e.to_string()))?;
+
+        Ok(json_result(
+            format!(
+                "Next coupon for {} {} — {}. Wrote '{}' ({} steps, {:.2}–{:.2} mm).",
+                p.key(),
+                class,
+                s.rationale,
+                name.file_name(),
+                clearances.len(),
+                s.min_mm,
+                s.max_mm
+            ),
+            json!({
+                "model": name.file_name(),
+                "path": path.display().to_string(),
+                "fit_class": class.to_string(),
+                "center_mm": s.center_mm,
+                "std_mm": s.std_mm,
+                "well_calibrated": s.well_calibrated,
+                "range_mm": { "min": s.min_mm, "max": s.max_mm, "step": s.step_mm },
+                "clearance_steps_mm": clearances,
+                "peg_diameter_mm": peg,
+                "rationale": s.rationale,
             }),
         ))
     }
@@ -2021,4 +2105,23 @@ fn scan_defs(
             }
         }
     }
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct SuggestCouponArgs {
+    /// Printer name.
+    pub printer: String,
+    /// Material.
+    pub material: String,
+    /// Nozzle diameter in mm (default 0.4).
+    #[serde(default)]
+    pub nozzle_mm: Option<f64>,
+    /// Fit class to converge: slip, snug, press, or snap.
+    pub fit_class: String,
+    /// Reference peg diameter in mm (default 10).
+    #[serde(default)]
+    pub peg_diameter_mm: Option<f64>,
+    /// Model name to write (default "<material>_<class>_coupon").
+    #[serde(default)]
+    pub name: Option<String>,
 }

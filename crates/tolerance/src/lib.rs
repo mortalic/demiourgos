@@ -25,7 +25,7 @@ pub mod outcome;
 pub mod profile;
 pub mod store;
 
-pub use calibrate::{calibrate, calibrate_from};
+pub use calibrate::{calibrate, calibrate_from, suggest_coupon_range, CouponSuggestion};
 pub use coupon::{clearance_steps, coupon_scad, CouponSpec};
 pub use fit::FitClass;
 pub use outcome::{Feature, Measurement, Outcome, Verdict};

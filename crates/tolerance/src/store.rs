@@ -239,7 +239,8 @@ mod tests {
             .unwrap();
 
         let eff = store.effective("ender3", "PETG", 0.4).unwrap();
-        assert_eq!(eff.clearance(FitClass::Slip), 0.32);
+        // A precise coupon pulls the estimate close to 0.32 (Bayesian-smoothed).
+        assert!((eff.clearance(FitClass::Slip) - 0.32).abs() < 0.02);
         assert_eq!(eff.samples, 1);
 
         let listed = store.list_effective().unwrap();

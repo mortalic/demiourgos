@@ -17,6 +17,16 @@ pub struct Clearances {
 }
 
 impl Clearances {
+    /// All four classes set to the same value.
+    pub fn uniform(v: f64) -> Clearances {
+        Clearances {
+            slip: v,
+            snug: v,
+            press: v,
+            snap: v,
+        }
+    }
+
     pub fn get(&self, class: FitClass) -> f64 {
         match class {
             FitClass::Slip => self.slip,
@@ -34,6 +44,16 @@ impl Clearances {
             FitClass::Snap => self.snap = value,
         }
     }
+}
+
+/// Prior (uncalibrated) standard deviation on a per-side clearance, in mm —
+/// how unsure the literature default is before any real-world data.
+pub const PRIOR_STD_MM: f64 = 0.12;
+
+/// Default per-class standard deviations (the prior), used by serde when an
+/// older `profiles.json` predates the field.
+fn prior_std_clearances() -> Clearances {
+    Clearances::uniform(PRIOR_STD_MM)
 }
 
 /// Where a profile's numbers came from.
@@ -62,8 +82,12 @@ pub struct Profile {
     /// First-layer bulge ("elephant's foot"), in mm, as a positive widening.
     pub elephant_foot_mm: f64,
 
-    /// Recommended per-side clearances by fit class.
+    /// Recommended per-side clearances by fit class (posterior mean).
     pub clearances_mm: Clearances,
+    /// Posterior standard deviation of each clearance (confidence — smaller is
+    /// more certain). Shrinks as outcomes accumulate.
+    #[serde(default = "prior_std_clearances")]
+    pub clearance_std_mm: Clearances,
 
     /// How many recorded outcomes informed this profile.
     pub samples: u32,
@@ -97,14 +121,20 @@ impl Profile {
             hole_offset_mm: d.hole_offset_mm,
             elephant_foot_mm: d.elephant_foot_mm,
             clearances_mm: d.clearances,
+            clearance_std_mm: prior_std_clearances(),
             samples: 0,
             source: ProfileSource::Default,
         }
     }
 
-    /// Recommended per-side clearance for a fit class.
+    /// Recommended per-side clearance for a fit class (posterior mean).
     pub fn clearance(&self, class: FitClass) -> f64 {
         self.clearances_mm.get(class)
+    }
+
+    /// Posterior standard deviation (uncertainty) of a class's clearance.
+    pub fn clearance_std(&self, class: FitClass) -> f64 {
+        self.clearance_std_mm.get(class)
     }
 }
 
