@@ -32,11 +32,35 @@ pub struct DfmReport {
     pub steepest_overhang_deg: Option<f64>,
     /// Area in contact with the bed (downward faces at the lowest Z), mm².
     pub bed_contact_area_mm2: f64,
+    /// Near-horizontal overhang area (≤15° from horizontal) — flat ceilings that
+    /// can often be bridged or chamfered, mm².
+    pub flat_overhang_area_mm2: f64,
+    /// Sloped overhang area (15° to threshold) — typically curved undersides /
+    /// fillets / hole rims, mm².
+    pub sloped_overhang_area_mm2: f64,
+    /// Directional coherence of the overhang faces (0 = pointing every way, i.e.
+    /// curved/round; 1 = a single planar slope). `None` if no overhangs.
+    pub overhang_coherence: Option<f64>,
     /// Estimated minimum wall thickness from ray sampling, mm. `None` if it could
     /// not be estimated.
     pub min_wall_mm: Option<f64>,
     /// Human-readable warnings worth surfacing to the designer.
     pub warnings: Vec<String>,
+    /// Targeted, actionable support-free design advice derived from the overhangs
+    /// (see `docs/support-free-design.md`).
+    pub support_advice: Vec<String>,
+}
+
+/// DFM score for one candidate print orientation (one face on the bed).
+#[derive(Debug, Clone, Serialize)]
+pub struct OrientationScore {
+    /// Which face is on the bed.
+    pub orientation: String,
+    pub overhang_area_mm2: f64,
+    pub overhang_fraction: f64,
+    pub steepest_overhang_deg: Option<f64>,
+    /// Bed-contact footprint (adhesion) in this orientation, mm².
+    pub bed_contact_area_mm2: f64,
 }
 
 /// Geometric (winding-based) unit normal of a triangle, or `None` if degenerate.
@@ -75,6 +99,12 @@ impl Mesh {
 
     /// Run a DFM pre-flight with a custom overhang threshold (degrees from horizontal).
     pub fn dfm_report_with(&self, overhang_threshold_deg: f64) -> DfmReport {
+        self.dfm_compute(overhang_threshold_deg, true)
+    }
+
+    /// Core DFM computation; `with_min_wall` controls the (orientation-invariant,
+    /// expensive) wall-thickness raycast so orientation scoring can skip it.
+    fn dfm_compute(&self, overhang_threshold_deg: f64, with_min_wall: bool) -> DfmReport {
         let z_min = self
             .vertices
             .iter()
@@ -87,8 +117,14 @@ impl Mesh {
 
         let mut total_area = 0.0;
         let mut overhang_area = 0.0;
+        let mut flat_overhang_area = 0.0;
+        let mut sloped_overhang_area = 0.0;
         let mut bed_contact_area = 0.0;
         let mut steepest: Option<f64> = None;
+        // Area-weighted resultant of the overhang faces' horizontal normals, and
+        // the total horizontal-normal magnitude, for a curvature/coherence metric.
+        let mut h_resultant = [0.0f64, 0.0];
+        let mut h_total = 0.0f64;
 
         for f in &self.faces {
             let a = self.vertices[f[0]];
@@ -125,9 +161,28 @@ impl Mesh {
 
                 if overhang_angle < overhang_threshold_deg {
                     overhang_area += area;
+                    if overhang_angle <= 15.0 {
+                        flat_overhang_area += area;
+                    } else {
+                        sloped_overhang_area += area;
+                    }
+                    // Coherence: how aligned the overhangs' horizontal normals are.
+                    let hmag = (n[0] * n[0] + n[1] * n[1]).sqrt();
+                    h_resultant[0] += area * n[0];
+                    h_resultant[1] += area * n[1];
+                    h_total += area * hmag;
                 }
             }
         }
+
+        let overhang_coherence = if h_total > 1e-9 {
+            let r = (h_resultant[0] * h_resultant[0] + h_resultant[1] * h_resultant[1]).sqrt();
+            Some((r / h_total).clamp(0.0, 1.0))
+        } else if overhang_area > 0.0 {
+            Some(1.0) // overhangs are dead-flat (no horizontal component) → coherent
+        } else {
+            None
+        };
 
         let overhang_fraction = if total_area > 0.0 {
             overhang_area / total_area
@@ -135,7 +190,11 @@ impl Mesh {
             0.0
         };
 
-        let min_wall_mm = crate::proximity::min_wall_thickness(self, 1500);
+        let min_wall_mm = if with_min_wall {
+            crate::proximity::min_wall_thickness(self, 1500)
+        } else {
+            None
+        };
 
         let mut warnings = Vec::new();
         if overhang_fraction > 0.02 {
@@ -166,6 +225,53 @@ impl Mesh {
             }
         }
 
+        // Targeted support-free design advice (see docs/support-free-design.md).
+        let mut support_advice = Vec::new();
+        if overhang_fraction <= 0.02 {
+            support_advice.push(
+                "No significant overhangs in this orientation — should print support-free."
+                    .to_string(),
+            );
+        } else {
+            support_advice.push(
+                "Try orientation_advisor first — reorienting often removes overhangs for free."
+                    .to_string(),
+            );
+            if flat_overhang_area > sloped_overhang_area && flat_overhang_area > 1.0 {
+                support_advice.push(format!(
+                    "Flat downward overhangs (~{flat_overhang_area:.0} mm²): they bridge if the span \
+                     is short; otherwise add a 45° chamfer underneath (chamfer_45)."
+                ));
+            }
+            // Low coherence + sloped area ⇒ curved undersides / round hole rims.
+            let curved = overhang_coherence.map(|c| c < 0.6).unwrap_or(false);
+            if curved && sloped_overhang_area > 1.0 {
+                support_advice.push(
+                    "Curved/round undersides detected — replace DOWN-facing fillets with 45° \
+                     chamfers, and make horizontal holes/sockets self-supporting with \
+                     teardrop_hole() or hex_hole()."
+                        .to_string(),
+                );
+            } else if sloped_overhang_area > 1.0 {
+                support_advice.push(format!(
+                    "Sloped overhangs (~{sloped_overhang_area:.0} mm²): steepen them past 45° from \
+                     horizontal, chamfer, or improve part cooling."
+                ));
+            }
+            if steepest.map(|s| s < 20.0).unwrap_or(false) {
+                support_advice.push(
+                    "A near-horizontal overhang will sag without support — chamfer it, bridge it \
+                     flat, or reorient."
+                        .to_string(),
+                );
+            }
+            support_advice.push(
+                "Helpers: `use <demiourgos_support.scad>;` for teardrop_hole / hex_hole / \
+                 support_pin / chamfer_45."
+                    .to_string(),
+            );
+        }
+
         DfmReport {
             build_height_mm,
             overhang_threshold_deg,
@@ -174,9 +280,56 @@ impl Mesh {
             overhang_fraction,
             steepest_overhang_deg: steepest,
             bed_contact_area_mm2: bed_contact_area,
+            flat_overhang_area_mm2: flat_overhang_area,
+            sloped_overhang_area_mm2: sloped_overhang_area,
+            overhang_coherence,
             min_wall_mm,
             warnings,
+            support_advice,
         }
+    }
+
+    /// Score the six axis-aligned print orientations (each face on the bed) by
+    /// their overhang, ranked best (least overhang, then most bed contact) first.
+    pub fn orientation_scores(&self, overhang_threshold_deg: f64) -> Vec<OrientationScore> {
+        // Rotations that bring each face's outward normal to point down (-Z).
+        type Rot = fn([f64; 3]) -> [f64; 3];
+        let orientations: [(&str, Rot); 6] = [
+            ("bottom (as modeled)", |p| p),
+            ("top", |p| [p[0], -p[1], -p[2]]),
+            ("+X side", |p| [p[2], p[1], -p[0]]),
+            ("-X side", |p| [-p[2], p[1], p[0]]),
+            ("+Y side", |p| [p[0], p[2], -p[1]]),
+            ("-Y side", |p| [p[0], -p[2], p[1]]),
+        ];
+
+        let mut scores: Vec<OrientationScore> = orientations
+            .iter()
+            .map(|(name, rot)| {
+                let verts: Vec<[f64; 3]> = self.vertices.iter().map(|&v| rot(v)).collect();
+                let rotated = Mesh::new(verts, self.faces.clone());
+                let r = rotated.dfm_compute(overhang_threshold_deg, false);
+                OrientationScore {
+                    orientation: format!("{name} face down"),
+                    overhang_area_mm2: r.overhang_area_mm2,
+                    overhang_fraction: r.overhang_fraction,
+                    steepest_overhang_deg: r.steepest_overhang_deg,
+                    bed_contact_area_mm2: r.bed_contact_area_mm2,
+                }
+            })
+            .collect();
+
+        scores.sort_by(|a, b| {
+            a.overhang_area_mm2
+                .partial_cmp(&b.overhang_area_mm2)
+                .unwrap_or(std::cmp::Ordering::Equal)
+                .then(
+                    b.bed_contact_area_mm2
+                        .partial_cmp(&a.bed_contact_area_mm2)
+                        .unwrap_or(std::cmp::Ordering::Equal),
+                )
+        });
+        scores
     }
 }
 
@@ -223,6 +376,9 @@ mod tests {
         assert_eq!(r.overhang_area_mm2, 0.0);
         assert!(r.bed_contact_area_mm2 >= 99.0); // ~100 mm^2 bottom
         assert!(r.build_height_mm == 10.0);
+        // No overhangs ⇒ the advice says it should print support-free.
+        assert!(r.support_advice.iter().any(|a| a.contains("support-free")));
+        assert_eq!(r.overhang_coherence, None);
     }
 
     #[test]

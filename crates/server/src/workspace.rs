@@ -9,6 +9,10 @@ use std::path::{Path, PathBuf};
 /// Subdirectory (under the workspace root) for generated artifacts.
 const ARTIFACTS_DIR: &str = "artifacts";
 
+/// The self-supporting helper library installed into every workspace.
+const SUPPORT_LIB_NAME: &str = "demiourgos_support.scad";
+const SUPPORT_LIB_SRC: &str = include_str!("../assets/scad/demiourgos_support.scad");
+
 /// Manages the on-disk workspace.
 #[derive(Debug, Clone)]
 pub struct Workspace {
@@ -40,6 +44,17 @@ impl Workspace {
         std::fs::create_dir_all(&artifacts)?;
         let root = root.canonicalize()?;
         let artifacts = artifacts.canonicalize()?;
+
+        // Install (refresh) the self-supporting helper library so models can
+        // `use <demiourgos_support.scad>;`. Only rewrite when the content differs.
+        let lib_path = root.join(SUPPORT_LIB_NAME);
+        let needs_write = std::fs::read_to_string(&lib_path)
+            .map(|existing| existing != SUPPORT_LIB_SRC)
+            .unwrap_or(true);
+        if needs_write {
+            let _ = std::fs::write(&lib_path, SUPPORT_LIB_SRC);
+        }
+
         Ok(Workspace { root, artifacts })
     }
 
@@ -125,7 +140,8 @@ impl Workspace {
             }
             let name = entry.file_name();
             if let Some(name) = name.to_str() {
-                if name.ends_with(".scad") {
+                // Skip the installed helper library — it isn't a user model.
+                if name.ends_with(".scad") && name != SUPPORT_LIB_NAME {
                     names.push(name.to_string());
                 }
             }

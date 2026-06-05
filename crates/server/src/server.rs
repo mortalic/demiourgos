@@ -1405,18 +1405,74 @@ impl Demiourgos {
             None => mesh.dfm_report(),
         };
         let summary = if report.warnings.is_empty() {
-            format!("{}: no DFM warnings", name.file_name())
+            format!(
+                "{}: no DFM warnings. {}",
+                name.file_name(),
+                report.support_advice.first().cloned().unwrap_or_default()
+            )
         } else {
             format!(
-                "{}: {} warning(s) — {}",
+                "{}: {} warning(s) — {}. Advice: {}",
                 name.file_name(),
                 report.warnings.len(),
-                report.warnings.join("; ")
+                report.warnings.join("; "),
+                report.support_advice.join(" ")
             )
         };
         Ok(json_result(
             summary,
             serde_json::to_value(&report).unwrap_or(json!({})),
+        ))
+    }
+
+    #[tool(
+        description = "Find the best print orientation: score the six axis-aligned ways to lay the \
+                       part on the bed by their overhang (and bed-contact footprint), ranked best \
+                       first. Reorienting is the cheapest way to avoid supports — check this before \
+                       redesigning."
+    )]
+    async fn orientation_advisor(
+        &self,
+        Parameters(args): Parameters<OrientationArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let name = self.require_model(&args.name)?;
+        let defines = self.defines(&args.defines);
+        let stl = self
+            .workspace
+            .artifact_path(&format!("{}.orient.stl", name.stem()));
+        let run = self.export_stl(&name, &stl, args.fn_n, &defines).await?;
+        if !run.success || !stl.is_file() {
+            return Ok(json_error(
+                failure_summary("export", &run),
+                failure_payload("export", &run),
+            ));
+        }
+        let mesh =
+            Mesh::from_stl_path(&stl).map_err(|e| internal(format!("failed to load STL: {e}")))?;
+        let threshold = args
+            .overhang_threshold_deg
+            .unwrap_or(demiourgos_mesh::dfm::DEFAULT_OVERHANG_THRESHOLD_DEG);
+        let scores = mesh.orientation_scores(threshold);
+
+        let best = scores.first();
+        let summary = match best {
+            Some(b) => format!(
+                "Best orientation for {}: {} ({:.0} mm² overhang, {:.0} mm² bed contact).",
+                name.file_name(),
+                b.orientation,
+                b.overhang_area_mm2,
+                b.bed_contact_area_mm2
+            ),
+            None => format!("{}: no orientations scored", name.file_name()),
+        };
+        Ok(json_result(
+            summary,
+            json!({
+                "model": name.file_name(),
+                "overhang_threshold_deg": threshold,
+                "best": best.map(|b| b.orientation.clone()),
+                "orientations": scores,
+            }),
         ))
     }
 
@@ -1931,14 +1987,23 @@ impl ServerHandler for Demiourgos {
         info.capabilities = ServerCapabilities::builder().enable_tools().build();
         info.server_info = server_info;
         info.instructions = Some(
-            "Demiourgos gives you eyes (render), a compiler (compile_check), a tape measure \
-             (measure, fit_check, cross_section), and a memory of what actually prints \
+            "Demiourgos gives you eyes (render, view_3d), a compiler (compile_check), a tape \
+             measure (measure, fit_check, cross_section), and a memory of what actually prints \
              (tolerance profiles + calibration). Inner loop: write_model -> compile_check -> \
-             render/measure. Before printing, run dfm_check for overhang/wall warnings and use \
-             recommend_clearance for the right per-side gap on your printer+material. Calibrate a \
-             printer/material once with gen_fit_coupon, print it, then record_outcome — every \
-             future design reuses the learned clearances. Models are referenced by name; artifacts \
-             live under the workspace's artifacts directory."
+             render/measure. Before printing, run dfm_check for overhang/wall warnings and \
+             orientation_advisor for the best face-down; use recommend_clearance for the right \
+             per-side gap on your printer+material. Calibrate once with gen_fit_coupon/\
+             suggest_coupon, print it, then record_outcome — every future design reuses the \
+             learned clearances.\n\n\
+             DESIGN FOR SUPPORT-FREE PRINTING (build direction is +Z): keep down-facing surfaces \
+             within 45 degrees of vertical — steep walls are free, shallow ceilings cost supports. \
+             Replace square overhangs and DOWN-facing fillets with 45-degree CHAMFERS (a fillet on \
+             a downward face is a ~90-degree overhang). Make horizontal holes/sockets TEARDROP or \
+             hexagonal so their tops self-support. Prefer flat bridges over sloped/domed ceilings. \
+             Reorient before redesigning (orientation_advisor). The library demiourgos_support.scad \
+             in the workspace provides teardrop_hole(), hex_hole(), and support_pin(); `use \
+             <demiourgos_support.scad>`. See docs/support-free-design.md. Models are referenced by \
+             name; artifacts live under the workspace's artifacts directory."
                 .to_string(),
         );
         info
@@ -2316,6 +2381,21 @@ pub struct PrintCheckArgs {
     /// Layer height override in mm.
     #[serde(default)]
     pub layer_height_mm: Option<f64>,
+    /// Optional `$fn` override.
+    #[serde(default, rename = "fn")]
+    pub fn_n: Option<u32>,
+    /// Optional variable overrides passed via `-D`.
+    #[serde(default)]
+    pub defines: Overrides,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct OrientationArgs {
+    /// Model name.
+    pub name: String,
+    /// Overhang threshold in degrees from horizontal (default 45).
+    #[serde(default)]
+    pub overhang_threshold_deg: Option<f64>,
     /// Optional `$fn` override.
     #[serde(default, rename = "fn")]
     pub fn_n: Option<u32>,

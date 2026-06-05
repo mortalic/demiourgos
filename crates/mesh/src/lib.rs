@@ -15,7 +15,7 @@ use serde::Serialize;
 
 pub mod dfm;
 pub mod proximity;
-pub use dfm::DfmReport;
+pub use dfm::{DfmReport, OrientationScore};
 pub use proximity::{min_distance, min_wall_thickness};
 
 /// Errors from loading or analyzing a mesh.
