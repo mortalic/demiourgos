@@ -106,6 +106,14 @@ impl Mesh {
 
             // Downward-facing exterior surface.
             if n[2] < -1e-6 {
+                // A downward face sitting on the bed is supported by the bed, not
+                // an overhang — count it as footprint and skip overhang accounting.
+                let cz = (a[2] + b[2] + c[2]) / 3.0;
+                if (cz - z_min).abs() <= bed_eps {
+                    bed_contact_area += area;
+                    continue;
+                }
+
                 // Surface angle from horizontal via acos(-n.z): a flat ceiling
                 // (n.z = -1) gives 0°, a vertical wall (n.z → 0) gives 90°.
                 let overhang_angle = (-n[2]).clamp(0.0, 1.0).acos().to_degrees();
@@ -117,12 +125,6 @@ impl Mesh {
 
                 if overhang_angle < overhang_threshold_deg {
                     overhang_area += area;
-                }
-
-                // Bed contact: downward face near the lowest Z.
-                let cz = (a[2] + b[2] + c[2]) / 3.0;
-                if (cz - z_min).abs() <= bed_eps {
-                    bed_contact_area += area;
                 }
             }
         }
@@ -215,10 +217,10 @@ mod tests {
     #[test]
     fn box_has_no_overhangs_but_has_bed_contact() {
         let r = box_mesh(10.0, 10.0, 10.0).dfm_report();
-        // The only downward face is the flat bottom (0° from horizontal) — but it
-        // sits on the bed, so it is bed contact, and 0° < 45° counts as overhang
-        // area too. Important: it IS flagged as the steepest overhang.
-        assert_eq!(r.steepest_overhang_deg, Some(0.0));
+        // The only downward face is the flat bottom, which rests on the bed — so
+        // it is footprint, not an overhang.
+        assert_eq!(r.steepest_overhang_deg, None);
+        assert_eq!(r.overhang_area_mm2, 0.0);
         assert!(r.bed_contact_area_mm2 >= 99.0); // ~100 mm^2 bottom
         assert!(r.build_height_mm == 10.0);
     }
