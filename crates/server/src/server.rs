@@ -2008,7 +2008,11 @@ impl ServerHandler for Demiourgos {
              pocket. Rotating bearings must stay round (teardrop the HOLE, not the pin). For a \
              pivot between two rigid printed parts, prefer a SEPARATE AXLE through aligned teardrop \
              bores (drop the part in, push a printed pin / rod / filament through) — it always \
-             assembles and prints support-free.\n\n\
+             assembles and prints support-free. A single-pivot FLUSH-FOLDING part cannot hold a \
+             load on its own: the load torque drives it back toward folded (the same direction it \
+             must be free to fold), so any rotation stop that holds the load also blocks folding. \
+             To hold load, add a DROP-IN LOCK PIN (a second pin pinning the deployed part to the \
+             frame), an over-center latch (needs a compliant snap), or a non-flush shelf/gusset.\n\n\
              Models are referenced by name; artifacts live under the workspace's artifacts directory."
                 .to_string(),
         );

@@ -110,6 +110,33 @@ the assembly path before committing to a joint:
   available to angle parts in)*. If the deflection wins, switch to a separate axle
   or add a real flex slot.
 
+### A single-pivot flush-folding part can't hold a load by itself
+
+A flush-folding hook/arm on **one revolute pivot cannot positively hold a load**
+that torques it toward the folded direction — and that's the usual case. The load
+on a deployed arm creates a torque that rotates it back toward folded, and the
+fold path must be open (or it couldn't fold), so **the direction the load pushes
+and the direction to fold are the same**. Any rotation stop that holds the load
+therefore also blocks folding. (Verify it on a model with an `intersection()` of
+the moving and fixed parts swept over the deploy angle: the overlap that would
+"stop" the load also appears across the fold range.)
+
+The ways out — none of which is a bigger stop block:
+- **Drop-in lock pin** (most robust, still flush): deploy the arm, then push a
+  second pin through aligned bores to pin it to the frame; pull it to fold. The
+  lock bore sits at a radius above the pivot — that radius is the load moment arm,
+  so put it as far out as the pocket depth allows.
+- **Over-center / toggle latch**: the deployed rest is just past a hump so the
+  load holds it *into* a stop; you flex past the hump to release. Needs a
+  compliant element — rigid PLA won't snap.
+- **Solid shelf / gusset**: the arm rests on fixed material (compression), but
+  that material can't occupy the fold space, so the part no longer folds flush.
+
+Design check for a drop-in lock: a second bore offset above the pivot needs the
+hub tall enough to house it **and** short enough that the hub clears the pocket
+back wall as it swings — deepen the pocket if those fight (as the folding hook
+did, 13 → 16 mm).
+
 This is why the folding-hook pivot uses a separate axle: its integral pins needed
 ~3 mm of wall deflection into a rigid 6 mm pocket with only ~0.8 mm of play — it
 could never have gone together.
