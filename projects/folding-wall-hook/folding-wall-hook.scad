@@ -1,57 +1,52 @@
 // Squared-Oval Folding Wall Hook — an ORIGINAL parametric design by this project.
 //
-// A flush-folding wall hook: a wall-mounted FRAME with a front pocket, and a
-// PADDLE that nests flush in the pocket when not in use and swings out to hang
-// things on. Squared-oval (rounded-rectangle) outlines — its own geometry.
+// FOLD-UP layout: the PADDLE folds UP flush in the pocket (covering the high,
+// hidden mounting screws) and deploys DOWN to a horizontal peg. A raised STOPPER
+// EDGE on the paddle root catches the frame at horizontal — a hanging load pushes
+// the paddle *into* the edge (a solid stop, no flex to shear), while folding is
+// free because you lift it back UP, the opposite way. The screws sit high, so the
+// load hangs below them and pulls down on them.
 //
-// Pivot + hold (fold-down, friction version): the paddle rotates on a separate
-// AXLE with a snug, FRICTION fit so it holds wherever you set it (no fragile
-// detent to shear). A solid STOPPER bar across the hub caps the deploy swing so
-// it stops at a clean angle instead of flopping. NOTE: in this fold-down layout a
-// downward pull is the same motion as folding, so the hold is friction only — it
-// keeps light items but a firm tug folds it. (Fold-UP + a hard stopper is the way
-// to truly lock a load; see docs/support-free-design.md.)
-//
-// Screws are hidden behind the folded paddle (in the pocket) and sit high, so the
-// load hangs below them. Support-free: paddle prints flat; axle bore teardropped;
-// axle prints on its head.
+// Pivot is a separate AXLE (drop the paddle in, push the pin through). Support-
+// free: paddle prints flat (the edge and lip point up, off the bed); axle bore is
+// teardropped; axle prints on its head.
 
 use <demiourgos_support.scad>;
 
 /* [Which part] */
 part = "assembled";   // [assembled, frame, paddle, axle]
-// Preview only: 0 = folded flush, 90 = deployed.
-preview_deploy = 90;  // [0:5:120]
+// Preview only: 0 = folded UP (flush), 90 = deployed horizontal.
+preview_deploy = 90;  // [0:5:110]
 
 /* [Outline] */
 w = 34;        // width  (X)
-h = 50;        // height (Y) — smaller now the screws live in the pocket
+h = 48;        // height (Y)
 depth = 15;    // depth from the wall (Z)
 corner = 9;    // outline corner radius
 
 /* [Frame] */
-back_wall = 3;       // wall-side back thickness (also the screw-boss depth)
+back_wall = 3;       // wall-side back thickness
 side_wall = 6;       // pocket side-wall thickness
-top_solid = 6;       // small solid cap above the pocket (was a big screw band)
+top_solid = 5;       // small cap above the pocket
 
-/* [Mounting screws — hidden in the pocket, behind the folded paddle] */
+/* [Mounting screws — high in the pocket, hidden behind the folded-up paddle] */
 screw_d = 4.3;       // M4 clearance
 screw_head_d = 8.0;  // countersink
-screw_gap = 16;      // vertical spacing between the two screws
-screw_drop = 5;      // how far below the pivot the upper screw sits
+screw_gap = 13;      // vertical spacing
+screw_top = 4;       // first screw this far below the pocket top
 
 /* [Pivot axle] */
-axle_d = 3;          // axle diameter (printed pin, or a 3 mm rod / filament / paperclip)
-axle_clear = 0.1;    // per-side clearance in the PADDLE bore — SNUG for a friction hinge
-axle_fit = 0.05;     // per-side clearance in the FRAME bores (the axle is fixed)
+axle_d = 3;          // axle diameter (printed pin, or a 3 mm rod / filament)
+axle_clear = 0.3;    // per-side clearance in the PADDLE bore (free rotation)
+axle_fit = 0.05;     // per-side clearance in the FRAME bores
 head_d = 6;
 head_h = 1.6;
-knurl_ribs = 10;     // longitudinal grip ribs on the shaft below the head
-knurl_over = 0.2;    // how far each rib stands proud of the shaft (the press grip)
+knurl_ribs = 10;
+knurl_over = 0.2;
 
-/* [Hub / stopper] */
-hub_ext = 7;         // chunky pivot hub (the visible "stopper" block at the pivot
-                     // end); kept within the paddle thickness so it prints flat
+/* [Stopper edge] */
+edge_h = 2.5;        // how far the edge stands proud of the paddle face
+edge_run = 4.0;      // chamfer run along the tongue (angled so it prints flat)
 
 /* [Paddle] */
 paddle_t = 6;        // paddle thickness
@@ -64,21 +59,21 @@ $fn = 96;
 pocket_top = h / 2 - top_solid;          // top of the pocket (Y)
 pocket_w = w - 2 * side_wall;            // pocket width
 pocket_r = max(2, corner - side_wall);   // pocket corner radius
-pocket_back = back_wall;                  // pocket floor (paddle nests against it)
-pivot_y = pocket_top - 8;                 // pivot dropped so the hub clears the cap
+pocket_back = back_wall;
+pivot_y = -h / 2 + 8;                     // pivot near the BOTTOM
 pivot_z = depth - paddle_t / 2 - paddle_clear; // pivot centered in the paddle
+hub_below = paddle_t / 2;                 // paddle reaches down to the deployed underside
+ledge_y = pivot_y - paddle_t / 2 - 0.6;   // top of the solid stopper ledge below the pivot
 
 paddle_w = pocket_w - 2 * paddle_clear;
-paddle_len = (pivot_y - (-h / 2)) - 2;    // reaches near the bottom edge when folded
+paddle_len = pocket_top - pivot_y - 2;    // tongue reaches up near the pocket top
 
 // 2D squared-oval (rounded rectangle) centered at origin.
 module squared_oval(width, height, r) {
     offset(r) offset(-r) square([width, height], center = true);
 }
 
-// A headed dowel that prints standing on its head (self-supporting). A band of
-// longitudinal grip ribs just below the head presses into the frame bore so the
-// pin seats and stays put (the ribs run vertical in the print — no support).
+// A headed dowel that prints standing on its head (self-supporting); grip knurl.
 module headed_pin(shaft_d, shaft_len, hd = head_d, hh = head_h, knurl = false) {
     cylinder(d = hd, h = hh);
     translate([0, 0, hh]) cylinder(d = shaft_d, h = shaft_len);
@@ -87,8 +82,7 @@ module headed_pin(shaft_d, shaft_len, hd = head_d, hh = head_h, knurl = false) {
         band = min(side_wall - 1, shaft_len - 1);
         for (i = [0:knurl_ribs - 1])
             rotate([0, 0, i * 360 / knurl_ribs])
-                translate([shaft_d / 2, 0, hh])
-                    cylinder(d = 2 * knurl_over, h = band, $fn = 12);
+                translate([shaft_d / 2, 0, hh]) cylinder(d = 2 * knurl_over, h = band, $fn = 12);
     }
 }
 
@@ -99,18 +93,20 @@ module frame_solid() {
     linear_extrude(depth) squared_oval(w, h, corner);
 }
 
+// Front pocket ABOVE the pivot (holds the folded-up tongue). Solid frame BELOW
+// the pivot is the stopper ledge the deployed paddle's edge catches.
 module pocket_cut() {
-    cut_bottom = -h / 2 - 12;
-    cut_h = pocket_top - cut_bottom;
-    cut_cy = (pocket_top + cut_bottom) / 2;
+    cut_top = pocket_top;
+    cut_bottom = ledge_y;   // pocket floor at the ledge top; solid frame below it
+    cut_h = cut_top - cut_bottom;
+    cut_cy = (cut_top + cut_bottom) / 2;
     translate([0, cut_cy, pocket_back])
         linear_extrude(depth + 1)
             squared_oval(pocket_w, cut_h, pocket_r);
 }
 
-// Screw hole through the back wall, countersunk on the POCKET side so the head
-// sits flush with the pocket floor — hidden behind the folded paddle. Drive it
-// with the paddle deployed (swung out of the way).
+// Screws high in the pocket, countersunk on the POCKET side so the heads sit
+// flush in the pocket floor — hidden behind the folded-up paddle.
 module screw_cut(y) {
     translate([0, y, -1]) cylinder(d = screw_d, h = back_wall + 1.1);
     cs = (screw_head_d - screw_d) / 2;
@@ -126,8 +122,8 @@ module frame() {
     difference() {
         frame_solid();
         pocket_cut();
-        screw_cut(pivot_y - screw_drop);
-        screw_cut(pivot_y - screw_drop - screw_gap);
+        screw_cut(pocket_top - screw_top);
+        screw_cut(pocket_top - screw_top - screw_gap);
         axle_bore_frame();
     }
 }
@@ -135,27 +131,27 @@ module frame() {
 // ===========================================================================
 // PADDLE
 // ===========================================================================
-// Local frame: pivot at the origin; tongue hangs -Y; thickness in Z.
+// Local frame: pivot at the origin; tongue extends +Y (UP when folded); +Z front.
 module paddle_local() {
     difference() {
         union() {
-            // Flat plate: tongue + pivot hub in one piece (pivot at the origin).
-            translate([0, (hub_ext - paddle_len) / 2, 0])
+            // Tongue + a little hub below the pivot (for bore material).
+            translate([0, (paddle_len - hub_below) / 2, 0])
                 linear_extrude(paddle_t, center = true)
-                    squared_oval(paddle_w, paddle_len + hub_ext, pocket_r - paddle_clear);
-            // Finger lip near the free (bottom) end to flip it out.
-            translate([0, -paddle_len + 7, paddle_t / 2])
+                    squared_oval(paddle_w, paddle_len + hub_below, pocket_r - paddle_clear);
+            // Finger lip near the free (+Y, top) end to flip it out.
+            translate([0, paddle_len - 7, paddle_t / 2])
                 linear_extrude(lip)
                     squared_oval(paddle_w * 0.6, 5, 2);
         }
-        // Axle bore at the pivot (teardrop, apex +Z, self-supporting). Snug fit.
+        // Axle bore at the pivot (teardrop, apex +Z, self-supporting).
         rotate([0, 0, -90]) teardrop_hole(d = axle_d + 2 * axle_clear, length = paddle_w + 4);
     }
 }
 
-// Place the paddle at the pivot, rotated for the preview deploy angle.
+// Place the paddle at the pivot. deploy 0 = folded up (+Y), 90 = horizontal (+Z).
 module paddle_placed(deploy) {
-    translate([0, pivot_y, pivot_z]) rotate([-deploy, 0, 0]) paddle_local();
+    translate([0, pivot_y, pivot_z]) rotate([deploy, 0, 0]) paddle_local();
 }
 
 // ===========================================================================
