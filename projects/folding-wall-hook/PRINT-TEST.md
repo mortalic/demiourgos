@@ -1,6 +1,6 @@
-# Print-test note — verify the axle fit and the detent
+# Print-test note — verify the axle fit and the hinge friction
 
-The pivot clearances and the **detent snap force** are calibrated-printer
+The pivot clearances and the **hinge friction** are calibrated-printer
 assumptions, **not yet verified on a print**. Run this short test before trusting
 them, and feed the result back into Demiourgos so the next design uses the real
 numbers.
@@ -10,25 +10,23 @@ numbers.
 | Fit | Bore | Per-side clearance | Target feel |
 |-----|------|--------------------|-------------|
 | Axle in **frame** | `axle_d + 2*axle_fit` = **3.10 mm** | 0.05 mm | **friction** — presses in, doesn't back out on its own |
-| Axle in **paddle** | `axle_d + 2*axle_clear` = **3.60 mm** | 0.30 mm | **free rotation** — paddle swings (a touch stiff from the detent) |
+| Axle in **paddle** | `axle_d + 2*axle_clear` = **3.20 mm** | 0.10 mm | **snug — this is the hinge friction**; the paddle stays where set |
 | Paddle in **pocket** | — | 0.40 mm | slides in, no slop that rattles |
 
 Axle shaft = **3.0 mm**.
 
-**The detent is the unverified part.** The geometry is confirmed (the ball seats
-at 90°), but the **snap force and holding strength depend entirely on the print**
-(finger stiffness + ball squeeze). Deploy the paddle and feel for a positive
-**click into the detent at horizontal**, then check it **holds against a light
-hang** and that you can **push past the click to fold**. Tune with:
+**The hinge friction is the unverified part.** The deployed paddle is held only by
+how snugly it grips the axle, which depends on the print. Deploy it to horizontal
+and check it **stays put under a light hang**, and that you can **fold it by hand**
+without it being floppy or seized. Tune with:
 
 | Symptom | Fix |
 |---------|-----|
-| No click / won't hold | **increase** `nub_press` (deeper ball) or **decrease** `finger_w` (softer finger) |
-| Too stiff to deploy/fold, or fingers feel like they'll snap | **decrease** `nub_press` or **increase** `finger_w` |
-| Holds but droops under load | increase `nub_press`, or move `nub_ly` out (bigger arm) |
-| Held angle wobbles | shrink the dimple (`nub_r + 0.1` → `+ 0.05`) |
+| Paddle is floppy / droops on its own | **decrease** `axle_clear` (tighter bore) |
+| Too stiff to fold, or binds | **increase** `axle_clear` |
+| Won't hold the weight you need | this layout is friction-limited — for a real load lock, flip to fold-up + a hard stopper |
 
-PETG fingers are springier and more fatigue-tolerant than PLA for the flexing.
+PETG is a bit slicker/tougher than PLA for a friction bore.
 
 ## Procedure
 

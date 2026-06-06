@@ -29,70 +29,63 @@ redistributed — this is a deliberately different, original design.
 
 ## Parts
 
-Three printed parts: a frame, a paddle, and one 3 mm axle. **No loose lock pin** —
-the deploy angle is held by a built-in detent.
+Three printed parts: a frame, a paddle, and one 3 mm axle. The deploy angle is
+held by a **friction hinge** (no fragile detent to shear).
 
 | Part | Role |
 |------|------|
-| **frame** | Squared-oval wall plate with two countersunk M4 holes, a front pocket, a pivot bore, and two detent dimples in the pocket walls. |
-| **paddle** | A squared-oval tongue with a pivot bore and two flexible detent fingers (each with a ball); folds flush, swings out to hang things. |
-| **axle** | A 3 mm headed pin the paddle rotates on. The printed one has a **grip knurl** under the head so it presses into the frame and stays put; a plain 3 mm rod / filament / metal pin works too. |
+| **frame** | Compact squared-oval wall plate; two countersunk M4 holes **hidden in the pocket floor**, a pivot bore. |
+| **paddle** | A squared-oval tongue with a snug pivot bore and a chunky reinforced hub; folds flush, swings out to hang things. |
+| **axle** | A 3 mm headed pin the paddle rotates on. The printed one has a **grip knurl** under the head so it presses in and stays; a plain 3 mm rod / filament / metal pin works too. |
 
-Folded, the paddle sits flush; flip it out (there's a finger-lip) and it **clicks
-into a detent** at horizontal — push past the click to fold it away. No second
-pin to insert or lose.
+Mount it with the paddle swung out (the screw heads sit flush in the pocket
+floor); fold the paddle flush and it **covers the screws**. Flip it out (there's a
+finger-lip) and the snug axle **holds it by friction**.
 
-**Why a detent (and a separate axle)?** Two findings drove the design:
-1. Integral snap-in pins can't be inserted into the rigid pocket (the walls won't
-   flex the ~3 mm needed) — so the pivot is a **separate axle**: drop the paddle
-   in, push the axle through.
-2. A single-pivot flush hook **can't hold a downward load with a simple stop** —
-   the load torque rotates the paddle back toward folded, the same direction it
-   must be free to fold, so any rigid stop also blocks folding. The escape used
-   here is a **compliant over-center detent**: two thin sprung fingers on the hub
-   carry balls that snap into dimples in the pocket walls at the deploy angle.
+**How it holds (and the honest limit).** This is the **fold-down friction**
+version. The paddle grips the axle (snug bore), so it stays where you set it —
+enough for keys, masks, towels, light bags. It is **not a rigid lock**: in a
+fold-down hook the load pulls the paddle the *same way* it folds, so no rigid
+stop can hold a heavy pull without also blocking the fold (that's what sheared the
+earlier detents). The hub is beefed up as a sturdy visible block and a soft
+backstop, but the hold is friction.
 
-Both are written up in the repo's
+**Want a true hard load-lock?** Flip the design to **fold-up / deploy-down** — then
+a hard stopper takes the load (the load pushes *into* it) and the screws are still
+hidden and high. See the
 [design knowledge](../../docs/support-free-design.md#design-for-assembly--printed-hinges-and-pivots).
-
-> Trade-off vs. a lock pin: a printed ball detent is a **soft hold** (it resists
-> casual folding and light loads and clicks positively), not a rigid lock. For
-> heavier loads, increase `nub_press` / reduce `finger_w`, or switch back to a
-> drop-in lock pin.
+The git history has a drop-in lock-pin variant too.
 
 ## Dimensions (defaults)
 
-- Frame: **34 × 68 × 15 mm**, two M4 countersunk holes. (The 15 mm depth gives the
-  detent hub room to clear the pocket back wall as it swings.)
-- Paddle: ~31 × 44 mm, 6 mm thick.
+- Frame: **34 × 50 × 15 mm** (smaller now the screws live in the pocket), two M4
+  countersunk holes hidden in the pocket floor.
+- Paddle: ~31 × 40 mm, 6 mm thick.
 - Axle: 3 mm shaft, 6 mm head.
-- Detent angle: **90°** (horizontal peg); set by `detent_angle`.
 
 Everything is a parameter at the top of `folding-wall-hook.scad` (a Customizer
-panel) — including `corner`, `detent_angle`, `nub_press` (snap firmness), and
-`finger_w` (finger stiffness).
+panel) — including `corner`, `hub_ext` (hub chunk), and `axle_clear` (hinge
+friction — smaller = stiffer hold).
 
-## Clearances & detent
+## Clearances
 
-Sized for a 3 mm axle: **0.3 mm per-side** in the paddle (free rotation), **0.05 mm
-per-side** in the frame (friction hold), and **0.4 mm per-side** paddle-to-pocket.
-The detent ball passes the pocket wall by **`nub_press` = 0.3 mm** (the squeeze)
-and seats in a dimple `nub_r + 0.1` mm wide. If your printer/material runs tight
-or loose, calibrate the axle once:
+Sized for a 3 mm axle: **0.1 mm per-side** in the paddle bore (**snug — this is the
+friction hinge**), **0.05 mm per-side** in the frame (the axle is fixed), and
+**0.4 mm per-side** paddle-to-pocket. If the hold is too loose or too stiff, change
+`axle_clear`. Calibrate once if your printer runs tight/loose:
 
 ```
-recommend_clearance  printer=<p> material=<m> fit_class=slip
+recommend_clearance  printer=<p> material=<m> fit_class=snug
 ```
 
 then set `axle_clear` / `axle_fit` / `paddle_clear`. A fit-test coupon
-(`pin-fit-coupon.scad`) is checked in; print it, find the tightest hole the axle
-slips into, and `record_outcome`.
+(`pin-fit-coupon.scad`) is checked in.
 
 ## Printing — support-free
 
 All three parts print **without supports** in their built-in orientations (verified
 with Demiourgos `dfm_check` + an `interference` sweep that confirms the paddle
-clears the frame across the 0–120° swing and the detent seats at 90°). Ready-to-slice
+folds flush and clears the frame across the whole 0–120° swing). Ready-to-slice
 STLs are in [`stl/`](stl/) (`frame.stl`, `paddle.stl`, `axle.stl`). To regenerate,
 set `part` and export.
 
@@ -117,15 +110,17 @@ hole-ceiling feature, not a structural wall) — it prints fine.
    paperclip in place of the printed axle).
 2. Drop the paddle into the frame's pocket and line up the pivot bores.
 3. Push the **axle** through frame → paddle → frame until its head seats.
-4. Mount the frame to the wall with two M4 screws (countersunk heads sit flush).
+4. With the paddle **swung out**, drive two M4 screws through the pocket-floor
+   holes into the wall (the heads countersink flush). Fold the paddle flush and it
+   **hides the screws**.
 
-**To use:** flip the paddle out — it clicks into the detent at horizontal and holds
-there. Push past the click to fold it back flush.
+**To use:** flip the paddle out — the snug axle holds it by friction wherever you
+set it. Push it back to fold flush.
 
-The axle fit, the pocket clearance, and especially the **detent snap force** are
-calibrated-printer assumptions — verify them with the short
-[print-test note](PRINT-TEST.md) before trusting them, and `record_outcome` so the
-engine learns your real numbers.
+The axle fit, the pocket clearance, and especially the **hinge friction**
+(`axle_clear`) are calibrated-printer assumptions — verify them with the short
+[print-test note](PRINT-TEST.md), and `record_outcome` so the engine learns your
+real numbers.
 
 ## How it was built
 
