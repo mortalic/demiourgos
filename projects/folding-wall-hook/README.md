@@ -1,5 +1,11 @@
 # Squared-Oval Folding Wall Hook
 
+> ⚠️ **Mid-rework — see [`STATUS.md`](STATUS.md) for the current state.** The design
+> is now the **fold-up** layout (folds up over hidden screws, deploys down to a peg
+> that loads onto a ledge). Sections below this banner still describe the earlier
+> **fold-down friction** version and are being rewritten once the fold-up test
+> print is confirmed.
+
 ![Squared-oval folding wall hook, paddle folded flush](renders/folded-iso.png)
 
 Folded flush (above) and deployed as a peg (below):
