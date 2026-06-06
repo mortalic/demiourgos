@@ -50,7 +50,7 @@ edge_run = 4.0;      // chamfer run along the tongue (angled so it prints flat)
 
 /* [Paddle] */
 paddle_t = 6;        // paddle thickness
-paddle_clear = 0.4;  // per-side gap between paddle and pocket
+paddle_clear = 0.5;  // per-side gap between paddle and pocket (more swing room)
 lip = 1.4;           // raised finger-lip to flip the paddle out
 
 $fn = 96;
