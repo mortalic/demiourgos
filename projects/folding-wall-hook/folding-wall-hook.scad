@@ -165,6 +165,16 @@ if (part == "frame") {
     headed_pin(axle_d, w - 0.5, knurl = true);
 } else if (part == "interference") {
     intersection() { frame(); paddle_placed(preview_deploy); }
+} else if (part == "cutaway") {
+    // Half-section through the middle so the pivot, the paddle base, and the
+    // solid stopper ledge below it are visible.
+    difference() {
+        union() {
+            frame();
+            color("Coral") paddle_placed(preview_deploy);
+        }
+        translate([w / 2, 0, depth / 2]) cube([w, 2 * h, 2 * depth + 4], center = true);
+    }
 } else {
     frame();
     color("Coral") paddle_placed(preview_deploy);
