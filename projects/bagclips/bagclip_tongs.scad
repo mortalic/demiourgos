@@ -34,6 +34,9 @@ $fn = 48;
 
 jc = (arm_t + jaw_gap) / 2;   // jaw centerline offset from the middle
 
+function arc(c, r, a0, a1, n) =
+  [ for (i=[0:n]) [ c[0]+r*cos(a0+(a1-a0)*i/n), c[1]+r*sin(a0+(a1-a0)*i/n) ] ];
+
 module ribbon(p, t) {
   for (i = [0 : len(p)-2])
     hull() { translate(p[i]) circle(d=t); translate(p[i+1]) circle(d=t); }
@@ -55,7 +58,9 @@ module clip2d() {
   union() {
     ribbon(arm_pts(+1), arm_t);
     ribbon(arm_pts(-1), arm_t);
-    difference() { circle(r = loop_r + loop_wall/2); circle(r = loop_r - loop_wall/2); }
+    // spring = C-loop OPEN toward the jaws (right half only), so the jaw slot runs
+    // into the loop and the arms can flex. A closed O would fuse the jaws solid.
+    ribbon(arc([0, 0], loop_r, 90, -90, 28), loop_wall);
     teeth( jc - arm_t/2, -1);   // top jaw inner (bottom) face, teeth point down
     teeth(-jc + arm_t/2, +1);   // bottom jaw inner (top) face, teeth point up
   }
