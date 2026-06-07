@@ -22,6 +22,15 @@ projects/**/reference/*.3mf
 projects/**/reference/*.zip
 projects/**/reference/*.step
 
+# downloaded reference / inspiration photos (third-party — keep local, never commit).
+# Our own renders are .png and stay tracked.
+projects/**/*.webp
+projects/**/*.jpg
+projects/**/*.jpeg
+projects/**/*.gif
+projects/**/*.heic
+projects/**/*.avif
+
 # think-and-ship reasoning/exec trace (local)
 .think-and-ship/
 
