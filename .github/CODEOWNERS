@@ -1,0 +1,7 @@
+# Code owners for demiourgos.
+# Owners are auto-requested for review on PRs that touch matching paths, and
+# (with branch protection's "require review from Code Owners") must approve
+# before merge. Last matching pattern wins.
+
+# Default owner for everything in the repo.
+* @mortalic
