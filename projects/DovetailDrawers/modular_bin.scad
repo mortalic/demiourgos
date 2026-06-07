@@ -33,7 +33,9 @@ dt_neck   = 7;    // width at the narrow neck
 dt_flare  = 2;    // extra half-width at the wide head (the locking bit)
 dt_depth  = 4;    // how far the dovetail protrudes / grooves in
 clearance = 0.20; // boss/rail sizing gap (leave this — your drawer rail is tuned to it)
-slot_clearance = 0.45; // dovetail SLOT looseness per side (raise if rails won't seat, lower if rattly)
+slot_clearance = 0.55; // dovetail SLOT looseness per side. 0.45 printed too tight
+                       // (joints wouldn't seat), 0.60 fit (a touch loose); trying
+                       // 0.55. Raise if rails won't seat, lower if rattly.
 
 /* ---------- [ WHICH CONNECTORS ARE PRESENT ] ----------
    A full interior tile has all four. For edge pieces, switch off
