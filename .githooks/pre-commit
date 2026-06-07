@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+# pre-commit: keep FBX in sync with STL.
+#
+# For every STL staged in this commit, (re)generate the sibling FBX and stage it,
+# so the committed <project>/fbx/*.fbx always matches <project>/stl/*.stl.
+#
+# Enable (one-time, per clone):  git config core.hooksPath .githooks
+set -euo pipefail
+
+repo_root="$(git rev-parse --show-toplevel)"
+
+# STLs added/copied/modified in this commit.
+mapfile -t staged < <(git diff --cached --name-only --diff-filter=ACM -- '*.stl')
+[[ ${#staged[@]} -gt 0 ]] || exit 0
+
+if ! command -v assimp >/dev/null; then
+  echo "pre-commit: assimp not found — skipping FBX refresh (install 'assimp' to keep FBX in sync)." >&2
+  exit 0
+fi
+
+for stl in "${staged[@]}"; do
+  abs="$repo_root/$stl"
+  [[ -f "$abs" ]] || continue
+  dir="$(dirname "$abs")"
+  base="$(basename "$abs" .stl)"
+  # stl/ -> sibling fbx/ ; otherwise alongside the STL.
+  if [[ "$(basename "$dir")" == "stl" ]]; then
+    out_dir="$(dirname "$dir")/fbx"
+  else
+    out_dir="$dir"
+  fi
+  mkdir -p "$out_dir"
+  out="$out_dir/$base.fbx"
+  assimp export "$abs" "$out" >/dev/null 2>&1
+  git add "$out"
+  echo "pre-commit: refreshed ${out#"$repo_root"/}"
+done
