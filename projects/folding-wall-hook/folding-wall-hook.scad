@@ -16,7 +16,16 @@ use <demiourgos_support.scad>;
 /* [Which part] */
 part = "assembled";   // [assembled, frame, paddle, axle]
 // Preview only: 0 = folded UP (flush), 90 = deployed horizontal.
-preview_deploy = 90;  // [0:5:110]
+preview_deploy = 70;  // [0:5:110]
+
+/* [Deploy stop] */
+// Hard-stop angle for the deployed peg. 90 = horizontal; < 90 = tip tilted UP so
+// hung items don't slide off. The paddle's stop HEEL seats flat on the base ledge
+// at this angle; a downward load presses the heel into solid frame (compression,
+// no shear), while folding lifts the heel off, so folding stays free.
+deploy_stop = 70;    // [50:5:90]
+stop_seat = 3.0;     // heel bearing length along the ledge (Z)
+stop_clear = 0.5;    // heel side clearance off the pocket walls (per side, X)
 
 /* [Outline] */
 w = 34;        // width  (X)
@@ -132,6 +141,22 @@ module frame() {
 // PADDLE
 // ===========================================================================
 // Local frame: pivot at the origin; tongue extends +Y (UP when folded); +Z front.
+// Stop heel, authored in the DEPLOYED (deploy_stop) world frame so its bottom
+// lands flat on the base ledge at exactly deploy_stop, then inverse-rotated into
+// the paddle's local frame. A box from the ledge up into the slab: the part below
+// the tongue underside is the heel that bears on the base; the rest merges into
+// the slab. Centered in Z under the tongue root, over the solid base.
+stop_zc = pivot_z + paddle_t / 2 - 1.0;   // heel Z center, FRONT of pivot so a
+                                          // rising load drives it DOWN into the base
+module stop_heel_local() {
+    rotate([-deploy_stop, 0, 0])
+        translate([0, -pivot_y, -pivot_z])
+            translate([-(paddle_w / 2 - stop_clear), ledge_y, stop_zc - stop_seat / 2])
+                cube([paddle_w - 2 * stop_clear,
+                      (pivot_y + 2) - ledge_y,
+                      stop_seat]);
+}
+
 module paddle_local() {
     difference() {
         union() {
@@ -143,6 +168,8 @@ module paddle_local() {
             translate([0, paddle_len - 7, paddle_t / 2])
                 linear_extrude(lip)
                     squared_oval(paddle_w * 0.6, 5, 2);
+            // Stop heel that seats on the base ledge at deploy_stop.
+            stop_heel_local();
         }
         // Axle bore at the pivot (teardrop, apex +Z, self-supporting).
         rotate([0, 0, -90]) teardrop_hole(d = axle_d + 2 * axle_clear, length = paddle_w + 4);
