@@ -1,11 +1,23 @@
-// Yarn Bowl — parametric recreation of projects/yarnbowl/yarn_bowl.stl.
+// Yarn Bowl — parametric recreation of projects/yarnbowl/yarn_bowl.stl, with an
+// optional WEIGHTED screw-on base (bayonet twist-lock).
+//
 // A pot-bellied round bowl (~160 dia x 100 tall) with a spiral "flame" yarn slot
-// that curls from a central eye out to a rim notch, plus three graduated
-// decorative dots in the crook. Prints flat on its base, support-free.
+// that curls from a central eye out to a rim notch, plus three graduated dots.
+// The base has a small central bayonet BORE; a separate CAP (a wider foot that
+// holds stick-on wheel-weights) twists a quarter-turn to lock on — no glue.
+// Both parts print flat, support-free.
+//
+//   part = "bowl"       the bowl (export this, base down)
+//   part = "cap"        the weight cap (export this, foot down = print orientation)
+//   part = "assembled"  bowl + cap locked together (preview)
+//   part = "section"    assembled, cut in half to see the bayonet
+
+/* [Which part] */
+part = "bowl";        // [bowl, cap, assembled, section]
 
 /* [Body profile] (radius mm at height z) */
 H        = 100;   // total height
-floor_z  = 6;     // interior floor height (floor thickness)
+floor_z  = 8;     // interior floor height (also the base thickness; >= bay roof)
 rim_lip  = 73.9;  // outer radius at the rim
 belly_r  = 80;    // max outer radius (belly)
 neck_r   = 68.7;  // min outer radius (waist below the rim)
@@ -27,11 +39,37 @@ flame_w_min  = 2.2;   // width at the eye
 dots = [ [19, 8, 7.0], [27, 1, 5.0], [21, -8, 3.8] ];
 
 /* [Base] */
-// A recessed foot prints unsupported only if it can bridge; a ~90 mm flat ceiling
-// can't, so the base is left flat (the recess is only ever seen from underneath).
 edge_chamfer = 1.0; // 45 deg chamfer at the bottom outer edge (eases first layer)
 
+/* [Weighted base — bayonet bore] */
+weight_base = true;  // cut the bayonet bore into the base
+bay_bore_d  = 16;    // bore diameter (the cap's post fits this)
+bay_clear   = 0.45;  // per-side clearance (post/bore + lugs/channel) — tune to printer
+bay_engage  = 6;     // bore depth / post insertion (needs floor_z - bay_engage >= 2 roof)
+z_lip       = 2.0;   // retaining-lip height (narrow bore 0..z_lip)
+lug_t       = 2.0;   // lug axial thickness
+lug_arc     = 30;    // lug angular width (deg)
+entry_arc   = 38;    // insertion-slot width (deg)
+lock_travel = 70;    // lock channel arc beyond the entry (deg)
+chan_extra  = 3.0;   // lug radial protrusion past the bore wall
+n_lug       = 3;
+
+/* [Weight cap] */
+cap_foot_d  = 125;   // wider foot at the table
+cap_top_d   = 108;   // seats against the bowl base (matches base dia)
+cap_wall    = 3;     // outer/seat wall
+cap_floor   = 2.5;   // cap floor thickness
+cavity_h    = 5;     // weight layer depth (~150 g of 1/4 oz stick-on segments)
+cavity_d    = 96;    // weight tray diameter (leaves a 6 mm seat ring)
+lock_angle  = 60;    // preview twist (insert at 0, locked here)
+
 $fn = 140;
+
+// ---- derived ----
+post_d   = bay_bore_d - 2*bay_clear;
+chan_rad = chan_extra + bay_clear;          // channel radial cut past the bore wall
+lug_rad  = chan_extra - bay_clear;          // lug protrusion (fits channel w/ clearance)
+z_seat   = cap_floor + cavity_h;            // cap local height to the seat plane
 
 // ---- outer silhouette (r, z), traced from the reference (flat base + chamfer) ----
 outer = [
@@ -59,7 +97,6 @@ function fR(a)   = eye_r*exp(spiral_grow*a);
 function fang(a) = spiral_phi0 + spiral_dir*a;
 function fx(a)   = slot_cx + fR(a)*cos(fang(a));
 function fy(a)   = slot_cz + fR(a)*sin(fang(a));
-// width grows from a thin eye to the fat rounded crest at the rim (a wave/koru)
 function fw(a)   = flame_w_min + (flame_w_max-flame_w_min)*pow(a/spiral_sweep, 0.85);
 
 module flame_2d() {
@@ -72,14 +109,11 @@ module flame_2d() {
 }
 
 module motif_2d() {
-  // mirror only the flame; dots stay in the right-hand crook
   mirror([slot_mirror,0,0]) flame_2d();
   for (d = dots)
     translate([slot_cx + d[0], slot_cz + d[1]]) circle(d = d[2], $fn=40);
 }
 
-// Cut the motif radially through the wall at the slot azimuth (plate spans
-// Y in [-92,-40], extruding outward through the -Y wall).
 module slot_cut() {
   rotate([0,0,slot_azimuth])
     translate([0, -40, 0])
@@ -88,7 +122,59 @@ module slot_cut() {
           motif_2d();
 }
 
-difference() {
-  body();
-  slot_cut();
+// ---- bayonet FEMALE: cut into the base bottom (z0 up) ----
+module bay_female() {
+  cylinder(d = bay_bore_d, h = bay_engage + 0.1);                 // narrow bore
+  for (i = [0:n_lug-1])                                           // upper lug channels
+    rotate([0,0, i*360/n_lug + entry_arc/2])
+      translate([0,0,z_lip])
+        rotate_extrude(angle = lock_travel)
+          translate([bay_bore_d/2, 0]) square([chan_rad, bay_engage - z_lip + 0.1]);
+  for (i = [0:n_lug-1])                                           // full-depth entry slots
+    rotate([0,0, i*360/n_lug - entry_arc/2])
+      rotate_extrude(angle = entry_arc)
+        translate([bay_bore_d/2, 0]) square([chan_rad, bay_engage + 0.1]);
+}
+
+module bowl() {
+  difference() {
+    body();
+    slot_cut();
+    if (weight_base) bay_female();
+  }
+}
+
+// ---- weight cap (local frame: foot bottom on z=0 = print orientation) ----
+module cap_local() {
+  difference() {
+    cylinder(d1 = cap_foot_d, d2 = cap_top_d, h = z_seat);   // flared foot shell
+    translate([0,0,cap_floor]) cylinder(d = cavity_d, h = cavity_h + 0.1);  // weight tray
+  }
+  cylinder(d = post_d, h = z_seat + (bay_engage - bay_clear)); // central post (re-fills tray center, goes into bore)
+  for (i = [0:n_lug-1])                                        // lugs near the post top
+    rotate([0,0, i*360/n_lug])
+      translate([0,0, z_seat + z_lip])
+        rotate([0,0,-lug_arc/2])
+          rotate_extrude(angle = lug_arc)
+            translate([post_d/2 - 0.4, 0])
+              square([bay_bore_d/2 + lug_rad - post_d/2 + 0.4, lug_t]);
+}
+
+// cap placed in the bowl's assembled frame (seat at z0), twisted to the lock angle
+module cap_assembled() {
+  rotate([0,0,lock_angle]) translate([0,0,-z_seat]) cap_local();
+}
+
+if (part == "cap") {
+  cap_local();
+} else if (part == "assembled") {
+  bowl();
+  color("Coral") cap_assembled();
+} else if (part == "section") {
+  difference() {
+    union() { bowl(); color("Coral") cap_assembled(); }
+    translate([belly_r, 0, H/2]) cube([2*belly_r, 4*belly_r, 2*H+30], center = true);
+  }
+} else {
+  bowl();
 }
