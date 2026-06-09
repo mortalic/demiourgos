@@ -22,21 +22,25 @@ rim_lip  = 73.9;  // outer radius at the rim
 belly_r  = 80;    // max outer radius (belly)
 neck_r   = 68.7;  // min outer radius (waist below the rim)
 
-/* [Yarn slot — spiral flame] */
+/* [Yarn slot — coiled spiral trap] */
+// A narrow spiral that enters at the rim and coils ~1.9 turns into a tight,
+// upward-ending inner curl. The extra wrap + the narrow channel keep the working
+// yarn from lifting out (a 1-turn swoosh lets it slip — crochet-expert feedback).
 slot_azimuth = 0;     // rotate the motif around the bowl (deg); 0 = faces -Y
-slot_mirror  = 0;     // 1 = mirror the flame handedness (0 = lobe to upper-left)
-slot_cx      = -3;    // motif center, arc offset
-slot_cz      = 60;    // motif center height
-eye_r        = 4.0;   // spiral eye (curl) radius
-spiral_grow  = 0.0064;// log-spiral growth per degree (crest reaches the rim)
-spiral_sweep = 360;   // one clean turn: eye -> crest at the rim
-spiral_phi0  = 90;    // start angle of the eye (deg)
+slot_mirror  = 0;     // 1 = mirror the spiral handedness
+slot_cx      = -3;    // spiral center, arc offset
+slot_cz      = 56;    // spiral center height
+eye_r        = 4.0;   // inner radius (the trap)
+spiral_grow  = 0.00344;// log-spiral growth per degree (outer turn reaches the rim)
+spiral_sweep = 684;   // ~1.9 turns of wrap
+spiral_phi0  = 90;    // start angle (inner terminus points up = the trap)
 spiral_dir   = -1;    // -1 clockwise, +1 counter-clockwise
-flame_w_max  = 20;    // width at the rounded crest (breaks the rim)
-flame_w_min  = 2.2;   // width at the eye
+flame_w_max  = 6.5;   // channel width at the rim entry
+flame_w_min  = 4.5;   // channel width at the inner curl (yarn-width, snug)
+hook_up      = 6;     // upward hook at the inner terminus (the trap)
 
 /* [Decorative dots] [u, v] relative to motif center, [d]iameter (right crook) */
-dots = [ [19, 8, 7.0], [27, 1, 5.0], [21, -8, 3.8] ];
+dots = [ [33, 8, 6.0], [38, 0, 4.5], [32, -8, 3.4] ];
 
 /* [Base] */
 edge_chamfer = 1.0; // 45 deg chamfer at the bottom outer edge (eases first layer)
@@ -92,19 +96,34 @@ module body() {
   }
 }
 
-// ---- spiral flame, authored in (u = arc, v = height) ----
+// ---- coiled spiral trap, authored in (u = arc, v = height) ----
 function fR(a)   = eye_r*exp(spiral_grow*a);
 function fang(a) = spiral_phi0 + spiral_dir*a;
-function fx(a)   = slot_cx + fR(a)*cos(fang(a));
-function fy(a)   = slot_cz + fR(a)*sin(fang(a));
-function fw(a)   = flame_w_min + (flame_w_max-flame_w_min)*pow(a/spiral_sweep, 0.85);
+function fP(a)   = [slot_cx + fR(a)*cos(fang(a)), slot_cz + fR(a)*sin(fang(a))];
+// narrow channel: yarn-width at the inner curl, a touch wider at the rim entry
+function fw(a)   = flame_w_min + (flame_w_max-flame_w_min)*(a/spiral_sweep);
+
+// short upward hook past the inner terminus that curls over — the working yarn
+// seats under it and can't lift out ("ends with an upward motion").
+function hookP(t) = fP(0) + [ -hook_up*0.7*(1-cos(t*90))/1, hook_up*sin(t*90) ];
 
 module flame_2d() {
-  step = 5;
-  for (a = [0 : step : spiral_sweep])
+  step = 6;
+  for (a = [0 : step : spiral_sweep - step])
     hull() {
-      translate([fx(a),      fy(a)])      circle(d = max(0.4,fw(a)),      $fn=20);
-      translate([fx(a+step), fy(a+step)]) circle(d = max(0.4,fw(a+step)), $fn=20);
+      translate(fP(a))      circle(d = fw(a),      $fn=20);
+      translate(fP(a+step)) circle(d = fw(a+step), $fn=20);
+    }
+  // rim lead-in: extend the outer end up through the rim (the entry)
+  hull() {
+    translate(fP(spiral_sweep)) circle(d = fw(spiral_sweep), $fn=20);
+    translate(fP(spiral_sweep) + [-2, 16]) circle(d = flame_w_max, $fn=20);
+  }
+  // inner upward hook (the trap)
+  for (t = [0:0.2:0.8])
+    hull() {
+      translate(hookP(t))     circle(d = flame_w_min, $fn=20);
+      translate(hookP(t+0.2)) circle(d = flame_w_min, $fn=20);
     }
 }
 
