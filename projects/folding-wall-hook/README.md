@@ -44,9 +44,9 @@ held by a **friction hinge** (no fragile detent to shear).
 | **paddle** | A squared-oval tongue with a snug pivot bore and a chunky reinforced hub; folds flush, swings out to hang things. |
 | **axle** | A 3 mm headed pin the paddle rotates on. The printed one has a **grip knurl** under the head so it presses in and stays; a plain 3 mm rod / filament / metal pin works too. |
 
-Mount it with the paddle swung out (the screw heads sit flush in the pocket
-floor); fold the paddle flush and it **covers the screws**. Flip it out (there's a
-finger-lip) and the snug axle **holds it by friction**.
+Assemble it off the wall, then **slide it down onto two wall screws** via the
+back-wall **keyhole slots**; fold the paddle flush and it **covers the keyholes**.
+Flip it out (there's a finger-lip) and the snug axle **holds it by friction**.
 
 **How it holds (and the honest limit).** This is the **fold-down friction**
 version. The paddle grips the axle (snug bore), so it stays where you set it —
@@ -115,10 +115,15 @@ hole-ceiling feature, not a structural wall) — it prints fine.
 1. Print **frame**, **paddle**, and **axle** (or use a 3 mm rod / filament /
    paperclip in place of the printed axle).
 2. Drop the paddle into the frame's pocket and line up the pivot bores.
-3. Push the **axle** through frame → paddle → frame until its head seats.
-4. With the paddle **swung out**, drive two M4 screws through the pocket-floor
-   holes into the wall (the heads countersink flush). Fold the paddle flush and it
-   **hides the screws**.
+3. Push the **axle** through frame → paddle → frame until its head seats. **Do all
+   of this off the wall** — it's fiddly to do on the wall.
+4. **Mount with keyholes (default).** Drive two M4 screws into the wall **16 mm
+   apart** (the upper one ~3 mm below where the pocket top will sit), leaving the
+   heads **~3–4 mm proud**. With the paddle swung **down/out**, drop the frame so
+   both heads pass through the round drop-holes, then **slide the hook straight
+   down** ~5 mm — the heads are trapped behind the back wall and it hangs. Fold the
+   paddle up and it **hides the keyholes**. (Set `keyhole_mount = false` for the
+   old style: drive screws through the pocket floor before folding.)
 
 **To use:** flip the paddle out — the snug axle holds it by friction wherever you
 set it. Push it back to fold flush.

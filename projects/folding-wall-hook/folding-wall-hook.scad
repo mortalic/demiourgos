@@ -40,9 +40,18 @@ top_solid = 5;       // small cap above the pocket
 
 /* [Mounting screws — high in the pocket, hidden behind the folded-up paddle] */
 screw_d = 4.3;       // M4 clearance
-screw_head_d = 8.0;  // countersink
-screw_gap = 13;      // vertical spacing
-screw_top = 4;       // first screw this far below the pocket top
+screw_head_d = 8.0;  // head diameter (countersink / keyhole drop-hole)
+screw_gap = 16;      // vertical spacing (wider so the two keyholes don't merge)
+screw_top = 3;       // first screw this far below the pocket top
+
+/* [Mount style]
+   keyhole = mount two screws in the wall (heads left ~3-4mm proud), assemble the
+   hook fully, then slide it DOWN onto the screws — no need to drive screws after
+   assembly. false = the old countersunk holes (drive screws through the pocket). */
+keyhole_mount   = true;
+keyhole_travel  = 5;    // slide-down distance (big hole sits this far below the rest)
+keyhole_head_clear  = 1.5;  // big-hole clearance over the head
+keyhole_shank_clear = 0.6;  // slot clearance over the shank
 
 /* [Pivot axle] */
 axle_d = 3;          // axle diameter (printed pin, or a 3 mm rod / filament)
@@ -122,6 +131,23 @@ module screw_cut(y) {
     translate([0, y, back_wall - cs]) cylinder(d1 = screw_d, d2 = screw_head_d, h = cs + 0.2);
 }
 
+// Keyhole through the back wall: a big drop-hole (clears the screw head) below a
+// narrow slot (clears the shank). Hang the assembled hook by dropping the heads
+// through the big holes and sliding DOWN; the heads are then trapped on the
+// pocket side and the hook hangs with the shanks at the slot tops (rest = y).
+module keyhole_cut(y) {
+    big_d  = screw_head_d + keyhole_head_clear;
+    slot_w = screw_d + keyhole_shank_clear;
+    translate([0, 0, -1])
+        linear_extrude(back_wall + 2) {
+            translate([0, y - keyhole_travel]) circle(d = big_d);                 // drop over the head
+            translate([-slot_w/2, y - keyhole_travel]) square([slot_w, keyhole_travel + 0.01]); // slide-up slot
+            translate([0, y]) circle(d = slot_w);                                 // rounded rest (top)
+        }
+}
+
+module mount_cut(y) { if (keyhole_mount) keyhole_cut(y); else screw_cut(y); }
+
 module axle_bore_frame() {
     translate([0, pivot_y, pivot_z]) rotate([0, 0, -90])
         teardrop_hole(d = axle_d + 2 * axle_fit, length = w + 2);
@@ -131,8 +157,8 @@ module frame() {
     difference() {
         frame_solid();
         pocket_cut();
-        screw_cut(pocket_top - screw_top);
-        screw_cut(pocket_top - screw_top - screw_gap);
+        mount_cut(pocket_top - screw_top);
+        mount_cut(pocket_top - screw_top - screw_gap);
         axle_bore_frame();
     }
 }
