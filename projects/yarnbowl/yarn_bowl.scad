@@ -37,7 +37,6 @@ spiral_phi0  = 90;    // start angle (inner terminus points up = the trap)
 spiral_dir   = -1;    // -1 clockwise, +1 counter-clockwise
 flame_w_max  = 6.5;   // channel width at the rim entry
 flame_w_min  = 4.5;   // channel width at the inner curl (yarn-width, snug)
-hook_up      = 6;     // upward hook at the inner terminus (the trap)
 
 /* [Decorative dots] [u, v] relative to motif center, [d]iameter (right crook) */
 dots = [ [33, 8, 6.0], [38, 0, 4.5], [32, -8, 3.4] ];
@@ -103,12 +102,11 @@ function fP(a)   = [slot_cx + fR(a)*cos(fang(a)), slot_cz + fR(a)*sin(fang(a))];
 // narrow channel: yarn-width at the inner curl, a touch wider at the rim entry
 function fw(a)   = flame_w_min + (flame_w_max-flame_w_min)*(a/spiral_sweep);
 
-// short upward hook past the inner terminus that curls over — the working yarn
-// seats under it and can't lift out ("ends with an upward motion").
-function hookP(t) = fP(0) + [ -hook_up*0.7*(1-cos(t*90))/1, hook_up*sin(t*90) ];
-
 module flame_2d() {
   step = 6;
+  // the spiral itself ends at the top of the eye (terminus points up = the trap).
+  // It is a single open curve, so the central tongue stays attached to the wall —
+  // no hook curling back, which would pinch off a floating island.
   for (a = [0 : step : spiral_sweep - step])
     hull() {
       translate(fP(a))      circle(d = fw(a),      $fn=20);
@@ -119,12 +117,6 @@ module flame_2d() {
     translate(fP(spiral_sweep)) circle(d = fw(spiral_sweep), $fn=20);
     translate(fP(spiral_sweep) + [-2, 16]) circle(d = flame_w_max, $fn=20);
   }
-  // inner upward hook (the trap)
-  for (t = [0:0.2:0.8])
-    hull() {
-      translate(hookP(t))     circle(d = flame_w_min, $fn=20);
-      translate(hookP(t+0.2)) circle(d = flame_w_min, $fn=20);
-    }
 }
 
 module motif_2d() {
