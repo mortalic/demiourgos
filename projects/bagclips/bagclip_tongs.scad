@@ -32,7 +32,7 @@ tooth_p = 1.8;      // tooth pitch
 
 /* [Text] */
 text_height = 1.5;  // height of the text extrusion
-text_depth = 0.5;   // depth of the text (how far into the clip)
+text_depth = 1.0;   // depth of the text (how far into the clip)
 
 $fn = 48;
 
@@ -60,8 +60,8 @@ module teeth(fy, dir) {
 
 // Add text to the clip
 module add_text() {
-  // Position text on the top jaw
-  translate([0, jc - arm_t/2 - text_height/2, bite/2])
+  // Position text on the top jaw surface
+  translate([0, jc - arm_t/2, bite/2])
     linear_extrude(text_depth)
       text("imakethingsforu.com", size=text_height, halign="center", valign="center");
 }
