@@ -60,12 +60,13 @@ module teeth(fy, dir) {
 
 // Add text to the clip
 module add_text() {
-  // Position text on the top jaw surface
+  // Create a 2D text shape and then extrude it properly
   translate([0, jc - arm_t/2, bite/2])
     linear_extrude(text_depth)
       text("imakethingsforu.com", size=text_height, halign="center", valign="center");
 }
 
+// Main clip module that creates the 2D profile
 module clip2d() {
   union() {
     ribbon(arm_pts(+1), arm_t);
@@ -75,10 +76,20 @@ module clip2d() {
     ribbon(arc([0, 0], loop_r, 90, -90, 28), loop_wall);
     teeth( jc - arm_t/2, -1);   // top jaw inner (bottom) face, teeth point down
     teeth(-jc + arm_t/2, +1);   // bottom jaw inner (top) face, teeth point up
-    
-    // Add text to the clip
-    add_text();
   }
 }
 
-linear_extrude(bite) clip2d();
+// Create the final 3D clip with text
+module main_clip() {
+  // First create the base clip
+  clip2d();
+  
+  // Then add the text as a separate 3D element that's unioned with the clip
+  // Position text on top of the jaw surface
+  translate([0, jc - arm_t/2, bite/2])
+    linear_extrude(text_depth)
+      text("imakethingsforu.com", size=text_height, halign="center", valign="center");
+}
+
+// The final extrusion of the entire clip including text
+linear_extrude(bite) main_clip();
