@@ -30,6 +30,10 @@ handle_spread= 7;   // half-distance between the handle tips (pinch leverage)
 tooth_d = 0.35;     // tooth bite toward the other jaw
 tooth_p = 1.8;      // tooth pitch
 
+/* [Text] */
+text_height = 1.5;  // height of the text extrusion
+text_depth = 0.5;   // depth of the text (how far into the clip)
+
 $fn = 48;
 
 jc = (arm_t + jaw_gap) / 2;   // jaw centerline offset from the middle
@@ -54,6 +58,14 @@ module teeth(fy, dir) {
     polygon([[x, fy - dir*0.5], [x + tooth_p/2, fy + dir*tooth_d], [x + tooth_p, fy - dir*0.5]]);
 }
 
+// Add text to the clip
+module add_text() {
+  // Position text on the top jaw
+  translate([0, jc - arm_t/2 - text_height/2, bite/2])
+    linear_extrude(text_depth)
+      text("imakethingsforu.com", size=text_height, halign="center", valign="center");
+}
+
 module clip2d() {
   union() {
     ribbon(arm_pts(+1), arm_t);
@@ -63,6 +75,9 @@ module clip2d() {
     ribbon(arc([0, 0], loop_r, 90, -90, 28), loop_wall);
     teeth( jc - arm_t/2, -1);   // top jaw inner (bottom) face, teeth point down
     teeth(-jc + arm_t/2, +1);   // bottom jaw inner (top) face, teeth point up
+    
+    // Add text to the clip
+    add_text();
   }
 }
 
