@@ -15,6 +15,7 @@ Cargo.lock.bak
 # per-project generated outputs
 projects/**/artifacts/
 projects/**/.demiourgos/
+projects/**/*.bgcode
 
 # downloaded reference models (do not redistribute third-party STLs)
 projects/**/reference/*.stl
