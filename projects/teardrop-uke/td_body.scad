@@ -22,8 +22,10 @@ module tube(p1, p2, d) {
 //    over the saddle.
 module bridge() {
     crest = saddle_str_z - body_depth + 0.2;  // 11.6 local: sunk 0.2 into the board
-    sc    = crest + nut_wall;      // saddle top: nut_wall above the string line, so
-                                   // the slots cut back down to it (same as the nut)
+    sc    = crest + saddle_wall;   // saddle top: saddle_wall above the string line, so
+                                   // the slots cut back down to it (was shared with
+                                   // the nut; the nut peaks went up 0.25 on Jul 23
+                                   // and the saddle stayed put)
     sd    = 3.2;                   // saddle top depth
     gap   = 1.5;                   // bare soundboard between the two pieces
     lt    = crest - 1.7;           // tie ledge height

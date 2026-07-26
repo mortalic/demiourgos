@@ -24,15 +24,17 @@ module frets() {
     // nut: raised block with one slot per string. Each slot floor crowns at
     // nut_y (shallow ramp toward the saddle, head_angle ramp toward the tuners)
     // so the string bears exactly on the scale-length point at nut_str_z.
+    nut_h = nut_str_z + nut_wall - fb_top;   // peak height above the fretboard
     difference() {
         union() {
             translate([0, nut_y, fb_top])
-                linear_extrude(nut_str_z + nut_wall - fb_top) square([nut_w, 3], center=true);
+                linear_extrude(nut_h) square([nut_w, 3], center=true);
             // 45-deg chamfer under the saddle-side face: printed upright that
             // face points straight down (90-deg overhang) — it drooped and
             // dragged strands across the slot mouths. Slots cut through it.
+            // Rises the full nut_h so raising the peaks leaves no bare shelf.
             translate([0, nut_y, fb_top]) rotate([90, 0, 90]) translate([0, 0, -nut_w/2])
-                linear_extrude(nut_w) polygon([[-1.5, 0], [-4.5, 0], [-1.5, 3]]);
+                linear_extrude(nut_w) polygon([[-1.5, 0], [-1.5 - nut_h, 0], [-1.5, nut_h]]);
         }
         // the two cuts tilt AWAY from each other above the crown pivot, so
         // each must extend past the pivot or an uncut wedge is left standing
