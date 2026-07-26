@@ -1,7 +1,7 @@
 # Demiourgos
 
-**An OpenSCAD MCP server that gives an AI assistant eyes, a compiler, a tape
-measure — and a memory of what actually prints.**
+**An OpenSCAD MCP server that gives an AI assistant eyes, a compiler, and a tape
+measure, plus a memory of what actually prints.**
 
 Demiourgos is a [Model Context Protocol](https://modelcontextprotocol.io) server,
 written in Rust, that turns an AI assistant into a capable OpenSCAD designer by
@@ -15,15 +15,15 @@ stop reprinting to dial in fits.
 Most OpenSCAD MCP servers stop at *render* and *export*. Demiourgos adds the
 layers that let an assistant reason about a part instead of just looking at it:
 
-- **Measurement** — exact bounding box, volume, center of mass, watertightness.
-- **Fit checking** — intersection volume and true minimum surface distance
+- **Measurement:** exact bounding box, volume, center of mass, watertightness.
+- **Fit checking:** intersection volume and true minimum surface distance
   between mating parts (dovetails, pegs, press-fits).
-- **Design-for-manufacturing** — overhang/wall/footprint pre-flight before you
+- **Design-for-manufacturing:** overhang/wall/footprint pre-flight before you
   print, and a first-order strength estimate.
-- **A learning tolerance engine** — calibrate a printer + material once and reuse
+- **A learning tolerance engine:** calibrate a printer + material once and reuse
   the right clearances forever (Bayesian, with active-learning coupon
   suggestions).
-- **An offline interactive 3D viewer** — spin the real mesh in a browser.
+- **An offline interactive 3D viewer:** spin the real mesh in a browser.
 
 ## Tool reference
 
@@ -43,7 +43,7 @@ renders/viewers also return an image or a file path. Models are referenced by
 |------|--------------|
 | `compile_check` | Fast validation (`-o tmp.csg`): errors/warnings with line numbers + `ECHO`. The cheap inner-loop tool. |
 | `render` | PNG of a named view (`front`/`back`/`left`/`right`/`top`/`bottom`/`iso`), or a labeled **contact sheet** from a `views` array. Ortho/perspective, `$fn` and `-D` overrides, `advanced_camera` passthrough. |
-| `view_3d` | Build a **fully offline** interactive 3D viewer (Three.js inlined) — orbit/zoom/pan the real mesh in a browser. See [below](#interactive-3d-viewer-webgl). |
+| `view_3d` | Build a **fully offline** interactive 3D viewer (Three.js inlined): orbit/zoom/pan the real mesh in a browser. See [below](#interactive-3d-viewer-webgl). |
 | `cross_section` | `projection(cut=true)` at an axis + offset → 2D section image (internal geometry, wall thickness). |
 | `param_sweep` | Render a model across N values of one variable into a labeled grid (customizer preset grid / tolerance contact sheet). |
 | `visual_diff` | Render two variants from the same view, highlight changed pixels in red, report the changed fraction (A \| B \| diff). |
@@ -54,7 +54,7 @@ renders/viewers also return an image or a file path. Models are referenced by
 | `measure` | Export binary STL → bounding box, volume (mm³), center of mass, triangle count, watertightness. |
 | `fit_check` | Intersection volume, bounding boxes, per-axis gaps, and minimum surface distance between two parts (optional transform on the second); optional tolerance-profile assessment. |
 | `dfm_check` | Unsupported overhang area + steepest overhang, bed-contact footprint, minimum wall thickness, warnings, **and targeted support-free advice** (chamfer down-fillets, teardrop horizontal holes, reorient…). |
-| `orientation_advisor` | Score the six axis-aligned print orientations by overhang and bed-contact footprint, ranked best first — the cheapest way to avoid supports. |
+| `orientation_advisor` | Score the six axis-aligned print orientations by overhang and bed-contact footprint, ranked best first, the cheapest way to avoid supports. |
 | `stress_check` | First-order **cantilever-beam** strength estimate (not FEA): max tip load before yield, plus stress + safety factor for a given load, with material + orientation + infill knockdowns. |
 | `print_check` | Slice via a PrusaSlicer-family CLI and report estimated **print time** and **filament** (length/volume/weight). Needs a slicer + config; degrades cleanly when absent. |
 
@@ -80,7 +80,7 @@ renders/viewers also return an image or a file path. Models are referenced by
 ## Interactive 3D viewer (WebGL)
 
 `view_3d` writes a single **self-contained HTML file** to the workspace's
-`artifacts/` directory with the model's mesh **and Three.js itself inlined** — so
+`artifacts/` directory with the model's mesh **and Three.js itself inlined**, so
 it works with **no internet connection**.
 
 1. Call `view_3d` with a model `name` (optionally a hex `color`). It returns the
@@ -98,28 +98,28 @@ it works with **no internet connection**.
 Z-up CAD orientation, a build-plate grid, and XYZ axes are included. For a quick
 *still* image instead, use `render` (it returns the PNG inline).
 
-## The tolerance engine — learn once, reuse forever
+## The tolerance engine: learn once, reuse forever
 
-The differentiator isn't measuring the *digital* model; it's remembering what
-happens when it meets a *physical* printer.
+Measuring the *digital* model is the easy part. Demiourgos's differentiator is
+remembering what happens when that model meets a *physical* printer.
 
 Each `(printer, material, nozzle)` has a **profile**: per-fit-class clearances
 (slip/snug/press/snap) plus dimensional offsets. Each clearance is modeled as a
-Normal posterior — a **mean** (the recommendation) and a **standard deviation**
-(confidence) — seeded from material defaults and refined by recorded **outcomes**
+Normal posterior, a **mean** (the recommendation) and a **standard deviation**
+(confidence), seeded from material defaults and refined by recorded **outcomes**
 via a conjugate Bayesian update that *fuses* repeated measurements instead of
 letting the last one win. Profiles + an append-only outcome log persist under
 `<workspace>/.demiourgos/` (git-friendly JSON + NDJSON).
 
 The loop that cuts down reprints:
 
-1. **`suggest_coupon`** (or `gen_fit_coupon`) writes a single test print — a plate
+1. **`suggest_coupon`** (or `gen_fit_coupon`) writes a single test print: a plate
    of holes stepped across a clearance range, plus a reference peg.
 2. Print it once; find the tightest hole that gives the fit you want.
 3. **`record_outcome`** logs that clearance; the profile recalibrates and its
    uncertainty shrinks.
 4. **`recommend_clearance`** (and profile-aware **`fit_check`**) now return the
-   value that works on *your* printer — for every future design. Call
+   value that works on *your* printer, for every future design. Call
    `suggest_coupon` again and it proposes a tighter confirming sweep, or says the
    fit is already well calibrated.
 
@@ -137,7 +137,7 @@ them away. The knowledge lives in three places:
   with them: keep down-facing surfaces within 45° of vertical, **chamfer**
   undersides (a down-facing *fillet* is a 90° overhang), **teardrop or hex**
   horizontal holes, prefer flat bridges, and **reorient before redesigning**.
-- **`dfm_check`** doesn't just flag overhangs — it classifies them (flat ceiling
+- **`dfm_check`** goes past flagging overhangs: it classifies them (flat ceiling
   vs curved underside) and returns **targeted advice** (e.g. "curved undersides →
   chamfer; horizontal holes → teardrop"), and **`orientation_advisor`** finds the
   best face-down.
@@ -200,17 +200,17 @@ a checked-in `.mcp.json`):
 
 ## Examples & projects
 
-- `examples/dovetail-bin` — a small parametric tray used in docs and the golden
+- `examples/dovetail-bin`: a small parametric tray used in docs and the golden
   test.
-- `projects/folding-wall-hook` — a worked project: an original squared-oval
+- `projects/folding-wall-hook`: a worked example. An original squared-oval
   flush-folding wall hook designed and validated entirely with Demiourgos
   (renders, STLs, an offline `view_3d` viewer, and a fit-test coupon).
 
 ## Slicing
 
 Demiourgos's STLs are pre-oriented to print support-free and assume a calibrated
-printer. For the slicer settings that most affect a successful print — first
-layer, flow/dimensional accuracy, cooling, supports-off, walls/infill — with
+printer. For the slicer settings that most affect a successful print (first
+layer, flow/dimensional accuracy, cooling, supports-off, walls/infill), with
 specific guidance for **PrusaSlicer (Prusa XL)** and **OrcaSlicer 2.3.0 (Troodon
 300)**, see [`docs/slicing.md`](docs/slicing.md).
 
@@ -220,7 +220,7 @@ specific guidance for **PrusaSlicer (Prusa XL)** and **OrcaSlicer 2.3.0 (Troodon
   rectangular cantilever with a tip load and applies FDM knockdowns; use it to
   *size* hooks/brackets, not to certify safety-critical parts.
 - **`print_check` needs a slicer config.** Slicing requires printer/print/filament
-  presets — accurate **weight** in particular needs the filament *density*.
+  presets. Accurate **weight** in particular needs the filament *density*.
   Ready-made PLA configs (0.4 mm nozzle, 1.75 mm filament, 1 kg spool) ship under
   [`slicer/`](slicer/): a generic `pla-0.4-1.75.ini` plus per-printer build
   volumes `prusaxl-pla-0.4-1.75.ini` (360³) and `troodon300-pla-0.4-1.75.ini`
