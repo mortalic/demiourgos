@@ -1,31 +1,49 @@
-// pursebase_XL — 17" x 10" (431.8 x 254 mm) crochet / knit bag BASE PLATE,
-// split into two halves so it fits a 360 mm bed, joined with a finger joint,
-// a stitched-on underside splice bar, and yarn stitching through the seam.
+// pursebase_XL — 17" x 10" (431.8 x 254 mm) crochet / knit bag BASE PLATE.
+// Two halves joined by a glued interlocking DOVETAIL seam, flush on both faces,
+// so the finished base reads and handles as one piece.
 //
-// Why it is split: a 431.8 x 254 plate needs a 485 mm square bed even rotated
-// 45 deg ((L+W)/sqrt(2) = 485). Rotating only helps parts narrower than ~149 mm;
-// at 254 mm wide, axis-aligned is optimal and the one-piece max is 360 x 254.
+// Why it is split at all: a 431.8 x 254 plate needs a 485 mm square bed even
+// rotated 45 deg ((L+W)/sqrt(2) = 485). Rotating only helps parts narrower than
+// ~149 mm; at 254 mm wide, axis-aligned is optimal and the one-piece max on a
+// 360 mm bed is 360 x 254. There is no orientation that prints this in one part.
 //
-// Why the seam runs this way: split across X puts the seam parallel to the
-// dominant bending stress (the plate is edge-supported all round by the crochet,
-// so the 254 mm span governs). The seam only sees the weaker long-span component.
+// Why the seam runs across X: the crochet supports the plate on all four edges,
+// so the 254 mm span governs the bending. A seam on X is parallel to the
+// dominant stress and only sees the weaker long-span component.
 //
-// Load path at the seam, in order of importance:
-//   1. splice bar on the UNDERSIDE  — the bottom fibre is in tension when the
-//      loaded bag hangs, so the strap belongs on the bottom face
-//   2. yarn stitched through both plate and bar — fibre in tension across the joint
-//   3. CA glue on the finger joint  — assembly aid more than structure
-//   4. finger joint itself          — alignment + shear along the seam
+// How the joint carries load, now that there is no splice bar:
+//   * At the seam plane the section is FULL 4 mm thickness across all 254 mm —
+//     no thin lap leaves, so no local loss of section modulus.
+//   * Tension across the seam transfers as SHEAR on the dovetail flanks
+//     (~880 mm2 of angled face). At 8 kg of bag contents that is ~1.2 MPa
+//     against 5-15 MPa for CA/epoxy on PLA.
+//   * The dovetail flare means that even with the glue gone the halves cannot
+//     be pulled apart in X or slid in Y. Only Z separation is glue-only, and
+//     the seam sits at midspan where transverse shear is near zero.
+//
+// Tabs are concentrated in |y| < 105, which is where the bending moment peaks.
+// Beyond that the seam is a plain glued butt line — correct, because the plate
+// is edge-supported there and the moment falls to ~0 at y = +/-127.
+//
+// Assembly: the halves are exact 2D complements, so they mate by dropping one
+// onto the other in Z (jigsaw-style), NOT by sliding together in the plane.
+//   1. dry-fit first; the tabs should seat with hand pressure
+//   2. thick CA or 5-min epoxy on the dovetail flanks — thin CA will grab
+//      before the tabs are home
+//   3. press flat on a known-flat surface, weight it, clamp across X
+//   4. sand the seam after cure — wood PLA blends a sanded seam very well,
+//      which is what makes the joint disappear
 //
 // PRINTING (wood PLA, hardened nozzle — wood fill is abrasive):
-//   Each half is 223.9 x 254 mm; two halves side by side do NOT fit 360 mm.
-//   Print half A + the bar together (263.9 x 254 fits), then half B. Brim on
-//   both — these are big flat parts and wood PLA is brittle if a corner lifts.
+//   Two separate jobs; each half is 227.9 x 254 mm and two do not share a bed.
+//   Brim on both — these are big flat parts and wood PLA is brittle if a corner
+//   lifts. Print both halves the SAME face down so the two bed-finished faces
+//   end up on the same side of the assembled base.
 //
-// Parts:  part = "A" | "B" | "bar" | "assembled"
+// Parts:  part = "A" | "B" | "assembled"
 
 /* [Part] */
-part = "assembled";     // [A, B, bar, assembled]
+part = "assembled";     // [A, B, assembled]
 
 /* [Plate] */
 plate_len   = 431.8;    // X, 17 in
@@ -40,23 +58,20 @@ hole_pitch  = 11.0;     // target spacing between holes along the perimeter
 hole_chamfer= 0.8;      // 45deg chamfer at each hole face (so it can't saw yarn)
 seam_offset = 10.0;     // x-distance from the seam to the nearest edge hole
 
-/* [Seam — finger joint] */
-seam_clear  = 0.20;     // per-side clearance in the joint (wood PLA, snug/glue fit)
-tab_depth   = 8.0;      // how far the fingers reach across the seam
-tab_w       = 22.0;     // finger width along Y
-tab_span    = 200.0;    // fingers live within |y| < tab_span/2, clear of the edge holes
+/* [Seam — dovetail joint] */
+seam_clear  = 0.20;     // per-side clearance (glue gap; wood PLA, uncalibrated)
+tab_depth   = 12.0;     // how far each dovetail reaches across the seam
+tab_w       = 24.0;     // target cell width along Y (actual is tab_span/ncells)
+tab_span    = 210.0;    // dovetails live within |y| < tab_span/2, clear of the holes
+dovetail_ang= 12.0;     // flank angle; 0 would be a straight finger joint
+root_frac   = 0.62;     // tab root width as a fraction of the cell
 
-/* [Seam — splice bar] */
-bar_w       = 40.0;     // X, wide enough to cover the fingers and both stitch rows
-bar_len     = 224.0;    // Y
-bar_t       = 3.0;      // doubles local section depth: 4 mm -> 7 mm, ~3x stiffer
-bar_taper   = 1.0;      // side draft so it is not a snag on the bag underside
-
-/* [Seam — stitch holes] */
-stitch_d     = 4.0;     // yarn + hook
-stitch_x     = 14.0;    // the two stitch rows sit at x = +/- this
+/* [Seam — optional yarn lacing] */
+seam_stitch  = false;   // extra holes so the seam can also be stitched with yarn
+stitch_d     = 4.0;
+stitch_x     = 16.0;    // the two stitch rows sit at x = +/- this (clear of tabs)
 stitch_pitch = 16.0;
-stitch_rows  = 6;       // holes per row per side of centre (so 4 * this in total)
+stitch_rows  = 6;       // holes per row per side of centre
 
 $fn = 48;
 
@@ -100,10 +115,47 @@ perim_holes = concat(
     [ for (i = [1:n_side]) let(p = side_point(i*p_side)) [-p[0], p[1]] ]
 );
 
-// stitch hole centres — two rows flanking the seam, inside the bar footprint
 stitch_ys = [ for (j = [0:stitch_rows-1])
                 each [ (j + 0.5)*stitch_pitch, -(j + 0.5)*stitch_pitch ] ];
-stitch_holes = [ for (y = stitch_ys) each [ [stitch_x, y], [-stitch_x, y] ] ];
+stitch_holes = seam_stitch
+  ? [ for (y = stitch_ys) each [ [stitch_x, y], [-stitch_x, y] ] ] : [];
+
+// ---- dovetail seam ----
+// An odd cell count keeps the pattern symmetric about y = 0 and puts a tab, not
+// a socket, on the centreline. Even cells carry A's tabs (pointing +x), odd
+// cells carry B's tabs (pointing -x), so each half is both male and female and
+// the joint locks in both directions along X.
+ncells = 2*floor(tab_span/(2*tab_w)) + 1;
+cw     = tab_span/ncells;
+flare  = tab_depth * tan(dovetail_ang);
+w_root = root_frac * cw;
+w_tip  = w_root + 2*flare;      // tip wider than root == cannot pull out in X
+function cell_y(k) = -tab_span/2 + (k + 0.5)*cw;
+
+BIG = 1000;
+
+module dovetail(yc, dir) {
+  polygon([[0,             yc - w_root/2],
+           [dir*tab_depth, yc - w_tip/2 ],
+           [dir*tab_depth, yc + w_tip/2 ],
+           [0,             yc + w_root/2]]);
+}
+
+// Half A: everything left of the seam, plus A's tabs, minus B's tabs.
+// Half B is the exact complement, so the two mate by construction.
+module seam_A_2d() {
+  difference() {
+    union() {
+      translate([-BIG/2, 0]) square([BIG, BIG], center=true);
+      for (k = [0:2:ncells-1]) dovetail(cell_y(k), +1);
+    }
+    for (k = [1:2:ncells-1]) dovetail(cell_y(k), -1);
+  }
+}
+
+module seam_B_2d() {
+  difference() { square([BIG, BIG], center=true); seam_A_2d(); }
+}
 
 // ------------------------------------------------------------------ modules ---
 module rrect(w, d, r) { offset(r) offset(-r) square([w, d], center=true); }
@@ -126,29 +178,9 @@ module full_plate() {
   }
 }
 
-// finger layout: odd cell count so the pattern is symmetric about y = 0.
-// Even cells are half A's fingers, odd cells are half B's.
-ncells = 2*floor(tab_span/(2*tab_w)) + 1;
-function cell_y(k) = -(ncells - 1)/2*tab_w + k*tab_w;
-
-BIG = 1000;
-
-// everything belonging to half A, before clearance: x <= 0 plus A's fingers
-module seam_A_2d() {
-  union() {
-    translate([-BIG/2, 0]) square([BIG, BIG], center=true);
-    for (k = [0:2:ncells-1])
-      translate([tab_depth/2, cell_y(k)]) square([tab_depth, tab_w], center=true);
-  }
-}
-
-// half B is the exact complement, so B's sockets match A's fingers by construction
-module seam_B_2d() {
-  difference() { square([BIG, BIG], center=true); seam_A_2d(); }
-}
-
-// Shrinking BOTH sides by seam_clear/2 opens a uniform seam_clear gap on every
-// joint face. delta (not r) keeps the finger corners square.
+// Shrinking BOTH halves by seam_clear/2 opens a uniform seam_clear glue gap on
+// every mating face, including the angled flanks. delta (not r) keeps the
+// dovetail corners sharp and preserves the flank angle.
 module half(which) {
   intersection() {
     full_plate();
@@ -158,44 +190,17 @@ module half(which) {
   }
 }
 
-// underside butt strap. Printed flat, wide face down — that face is the glue
-// face, and a bed-finished surface bonds better than a top surface.
-module splice_bar() {
-  difference() {
-    hull() {
-      linear_extrude(0.01) rrect(bar_w, bar_len, 5);
-      translate([0, 0, bar_t - 0.01])
-        linear_extrude(0.01) rrect(bar_w - 2*bar_taper, bar_len - 2*bar_taper, 4);
-    }
-    for (p = stitch_holes)
-      translate([p[0], p[1], -1]) cylinder(d=stitch_d, h=bar_t + 2);
-    // countersink the exposed face so the yarn crosses a chamfer, not an edge
-    for (p = stitch_holes)
-      translate([p[0], p[1], bar_t - hole_chamfer])
-        cylinder(d1=stitch_d, d2=stitch_d + 2*hole_chamfer, h=hole_chamfer + 0.01);
-  }
-}
-
 // ---------------------------------------------------------------- assembly ---
-if (part == "A")           half("A");
-else if (part == "B")      half("B");
-else if (part == "bar")    splice_bar();
-else {
-  half("A");
-  half("B");
-  // bar hangs below the plate; flipped so its tapered face points away
-  translate([0, 0, -thickness/2])
-    mirror([0, 0, 1]) splice_bar();
-}
+if      (part == "A") half("A");
+else if (part == "B") half("B");
+else { half("A"); half("B"); }
 
 // ------------------------------------------------------------------ report ---
 half_x = plate_len/2 + tab_depth;
-echo(str("half footprint  = ", half_x, " x ", plate_wid, " mm"));
-echo(str("bar footprint   = ", bar_w, " x ", bar_len, " mm"));
-echo(str("half + bar on X = ", half_x + bar_w, " mm (must be < bed)"));
-// A carries all the tabs, B all the sockets — the seam is a square wave between
-// x = 0 and x = tab_depth. Functionally identical to an interdigitated joint for
-// shear and alignment, and it keeps B's outline simple.
-echo(crochet_holes = len(perim_holes), stitch_holes = len(stitch_holes),
-     tabs_on_A = ceil(ncells/2), sockets_in_B = ceil(ncells/2),
-     straight_pitch = p_str, side_pitch = p_side);
+// flank area is what actually carries tension across the seam
+flank_area = 2*ncells * (tab_depth/cos(dovetail_ang)) * thickness;
+echo(str("half footprint = ", half_x, " x ", plate_wid, " mm  (two prints)"));
+echo(str("dovetail flank glue area = ", round(flank_area), " mm2"));
+echo(cells = ncells, tabs_on_A = ceil(ncells/2), tabs_on_B = floor(ncells/2),
+     cell_w = cw, root_w = w_root, tip_w = w_tip, shoulder = cw - w_root,
+     crochet_holes = len(perim_holes), stitch_holes = len(stitch_holes));
