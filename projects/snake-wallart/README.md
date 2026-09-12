@@ -1,90 +1,141 @@
-# Low-poly ball python head — wall relief
+# Ball python wall art
 
-**Status: pipeline done and verified, sculpt not there yet.** Read "Where this
-stands" before printing anything.
+Two independent attempts at a ball python for the wall. The **wire piece is
+done and printable**; the relief is parked.
 
-## What it is
+| | file | status |
+|---|---|---|
+| Coiled wire line-art | `bp_coiled_wire.scad` | **done** — 297 × 225 × 4 mm, one connected piece, support-free |
+| Low-poly head relief | `ballpython_head.scad` + `gen_head.py` | parked — machinery correct, sculpt never landed |
 
-A faceted relief of a ball python head, front view, styled cute (enlarged eyes,
-blunted snout, lifted mouth corner). Designed to hang flat on a wall.
+---
 
-Current default: **260 × 231 × 26 mm** (22 mm relief + 4 mm backer), 618 cm³,
-two flush keyhole mounts in the back.
+## 1. Coiled wire line-art (current)
 
-## How it's built
+A flat cut-through plate in the style of `reference/Snake_-_Had.stl`: the form is
+described by flowing **parallel contour lines** of near-constant width with
+generous open space between them. Head in profile on a raised neck, body coiling
+below.
 
-`gen_head.py` authors the head as a **single-valued height field** `z = f(x, y)`
-over the silhouette and emits a native OpenSCAD `polyhedron()`.
+**297 × 225 × 4 mm**, 73.5 cm³, watertight, prints back-flat with **zero
+overhangs** and an 18,400 mm² bed footprint. Minimum wall 3.2 mm.
 
-Three decisions carry the whole thing:
+### How it's built
 
-1. **Height field, not free geometry.** If every `(x, y)` has exactly one `z`,
-   then no facet can face downward, and the plaque prints back-flat on the bed
-   with zero supports. This is enforced, not assumed — `build()` measures the
-   downward-facing area of every facet and refuses to emit if any exists.
+The body lines are **generated, not hand-placed**. A centreline (`BODY`, eight
+bezier segments) plus a half-width profile (`HW`) are offset along the normal:
 
-2. **`polyhedron()`, not an imported STL.** OpenSCAD 2021.01 cannot boolean
-   imported meshes, so an STL would block the keyhole `difference()`.
+```scad
+function ribbon(frac, gmax = 1.0) = [ ... p + n * frac * hwi(g) ... ];
+```
 
-3. **One closed shell, not a union.** Relief, silhouette wall and backer are a
-   single manifold. The first attempt unioned a separate extruded plate onto the
-   relief; the shared coincident face plus the zero-thickness knife edge at the
-   silhouette made CGAL drop the relief entirely and silently emit only the
-   plate. Building one shell removes both problems.
+That is what produces true parallel flow through a curve. Hand-placed strokes
+drift out of parallel on the bends and look wrong; this does not. `gmax` lets the
+interior contours stop short of the tail so it tapers to a point instead of
+filling in as a solid wedge.
 
-Two correctness passes run on every generate, and both caught real bugs:
+Three things carry the piece:
 
-- **Edge-manifold + orientation.** Regions are authored by hand and do not agree
-  on winding. A BFS over face adjacency reorients everything consistently, then
-  one global flip fixes the sign. It also asserts every edge is used exactly
-  twice. Before this, the mesh was inconsistently wound, which is why the union
-  silently dropped it.
-- **Height-field assertion.** Caught 1764 mm² of genuinely downward-facing
-  facets from two hand-triangulated regions that *overlapped in projection* —
-  vertex `k1` sat inside the triangle next to it. Regions are now triangulated
-  by ear clipping (`earclip()`), which cannot produce overlaps.
+1. **The head outline is an OPEN chain, not a closed loop.** A closed loop needs
+   a rear closure, and since the body is contour lines rather than a filled
+   shape, that closure stays visible and caps off the back of the skull. The
+   curve instead runs from the body's inner edge forward along the jaw, around
+   the blunt rostral, back over the crown, and lands on the body's outer edge.
 
-`dfm_check` independently confirms the result: *"No significant overhangs in
-this orientation — should print support-free."* The 223 mm² it still reports is
-the two keyhole pocket ceilings, which are short bridges over the bed and never
-show.
+2. **Every head line continues a body contour from its exact start point.** The
+   body contours begin at `x = 160` with blunt caps; anything that merely ended
+   *near* one left a visible stub floating in the open space between contours.
+   The junction positions were solved numerically, not guessed:
 
-## Where this stands
+   ```
+   frac +1.0  head top line  -> (162.2,  34.9)
+   frac +0.5  BROW           -> (161.1,  21.5)
+   frac  0.0  CHEEK          -> (160.0,   8.0)
+   frac -0.5  THROAT         -> (158.9,  -5.5)
+   frac -1.0  head jaw line  -> (157.8, -18.9)
+   ```
 
-The machinery is correct and verified. **The sculpt is not good yet** — see
-`renders/`. It currently reads as a faceted lump with two eye bumps, not as a
-ball python. The silhouette and the feature placement are hand-guessed
-coordinates, and blind coordinate-nudging is the wrong way to land anatomy.
+3. **Connectivity is verified, not assumed.** On a cut-through plate any stroke
+   touching nothing falls out of the piece. See below.
 
-Three rounds of tuning got the proportions roughly right (widened to ~1.3:1,
-broadened the snout off its initial keel, sharpened the mouth crease) but it
-needs a reference to go further. The productive next step is the tracing route
-flagged at the outset: trace a head-on ball python photo to a vector outline,
-use it to place the silhouette ring and the eye/nostril/mouth-corner positions,
-and keep the existing generator underneath unchanged. Everything downstream —
-manifold checks, height-field guarantee, keyholes, export — already works.
+### Connectivity — check this after every edit
 
-Specific things known to be weak:
-- Silhouette is still too round; a ball python skull is a flatter-topped wedge.
-- Eyes don't read. They need to be larger, set lower, and given a distinct rim.
-- Chin is a flat fan — the two interior jaw points were dropped when regions
-  moved to ear clipping, and should come back as a proper sub-region.
-- No nostrils, no labial pits. Both are strong ball python cues.
+The first export had **two** connected components: `{eye ring → cheek → centre
+body contour}` was an island of 1876 triangles that would have dropped straight
+out. The brow was passing 1.7 mm above the eye instead of landing on it.
 
-## Files
+Nothing in the render shows this. Check it explicitly:
 
-- `gen_head.py` — the generator. Edit the `V` vertex table and `REGIONS`.
-- `bp_head_data.scad` — generated; do not hand-edit.
-- `ballpython_head.scad` — assembly: polyhedron + keyhole cuts.
-- `ballpython_head.stl`, `renders/` — current state, for viewing.
+```sh
+openscad -o /tmp/bp.stl --export-format binstl projects/snake-wallart/bp_coiled_wire.scad
+# then union-find over triangles sharing a welded vertex; must report 1 component
+```
+
+Watertight is **not** the same test — a floating island is perfectly watertight.
+
+### Anatomy notes (from `reference/`)
+
+- Head is **1.45:1 long-to-deep**. A ball python is not a colubrid; anything
+  longer reads as a fish. This was the single most persistent error.
+- The skull is a **brick with a rounded end** — flat crown, flat jaw, near-vertical
+  rostral face. Letting the crown and jaw taper to a front point gives a teardrop,
+  which reads as a dolphin.
+- Eye is large (≈1/5 of head length), set forward and high, with the brow
+  resting directly on it.
+- **Labial pits** are the signature and the reason this reads as a ball python
+  rather than a generic snake — the row of slots along the front of the upper
+  lip, bright orange in the photos. Drawn as rungs between the two lip rails,
+  front only (`PIT_T`).
+
+### Hanging
+
+**One hole**, at design `(132.4, 47.2)` → final x = −8.14 mm, against a centre of
+mass at x = −8.52 mm. It hangs level off a single nail.
+
+Two holes would be better for anti-rotation but there is no pair of points at
+equal height either side of the balance point — the coil puts the mass well right
+of the crown, and the crown is the only high ground. Rebalancing the composition
+is the only way to get a second hanger.
+
+### Print notes
+
+Back flat on the bed, no supports. 73.5 cm³ — at 15 % infill expect roughly
+60–80 g. A raking wall light is what makes line art work, so plan the hanging
+spot for side light. `piece_w` scales the whole thing; 297 mm fits the 360 mm bed
+with room to spare.
+
+---
+
+## 2. Low-poly head relief (parked)
+
+`gen_head.py` authors the head as a single-valued height field `z = f(x, y)` over
+the silhouette and emits a native OpenSCAD `polyhedron()`. Three decisions carry
+it: height field (so no facet can face downward and it prints back-flat),
+`polyhedron()` rather than an imported STL (OpenSCAD 2021.01 cannot boolean
+imported meshes, so an STL would block the keyhole `difference()`), and one
+closed shell rather than a union (a shared coincident face plus a zero-thickness
+knife edge made CGAL silently drop the relief).
+
+Two correctness passes run on every generate and both caught real bugs: a BFS
+reorientation that also asserts every edge is used exactly twice, and a
+height-field assertion that caught 1764 mm² of downward-facing facets from two
+hand-triangulated regions overlapping in projection.
+
+**The machinery is correct; the sculpt is not.** It reads as a faceted lump with
+two eye bumps. It was built before the reference photos existed, on hand-guessed
+coordinates — which is exactly why it stalled. The photos in `reference/` are now
+what it always needed, if it's ever worth resuming.
 
 Regenerate with:
 
     python3 projects/snake-wallart/gen_head.py workspace/bp_head_data.scad
 
-## Print notes (once the sculpt is worth printing)
+---
 
-Back flat on the bed, no supports. 618 cm³ solid — at 15% infill expect roughly
-150–200 g and a long print at this size; `scale` and `depth` in `gen_head.py`
-take it down easily. Matte PLA or PETG; a raking wall light is what makes a
-faceted relief work, so plan the hanging spot for side light.
+## Reference
+
+`reference/` holds the source material (gitignored — third-party, keep local):
+
+- two head-on ball python photos — skull proportions, eye placement, labial pits
+- a three-quarter coiled leucistic — head profile and the coiled pose
+- `Snake_-_Had.stl` — the contour-line style target
