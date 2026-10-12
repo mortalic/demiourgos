@@ -6,23 +6,57 @@
 //
 // Flat profile extruded along Z; prints flat, support-free; legs flex in-plane.
 
+use <bagclip_brand.scad>
+
+/* [Variant] */
+variant = "large";        // std | large | xl | xxl
+sz = variant == "std" ? 0 : variant == "large" ? 1 : variant == "xl" ? 2 : 3;
+function pk(v) = v[sz];   // pick per variant: [std, large, xl, xxl]
+
 /* [Size] */
-clip_h   = 68;    // height (Y)
-foot_w   = 12;    // half-width at the splayed feet (bottom)
-arm_t    = 3.0;   // leg thickness
-bite     = 10;    // Z depth
+// xl / xxl only grow in Y (longer jaws); bite and arm thickness match large.
+clip_h   = pk([68, 112, 156, 200]);  // height (Y)
+foot_w   = pk([12, 16, 16, 16]);     // half-width at the splayed feet (bottom)
+arm_t    = pk([3.0, 3.4, 3.4, 3.4]); // leg thickness
+bite     = pk([10, 15, 15, 15]);     // Z depth
 
 /* [Loop spring] */
-r_loop   = 6;     // top loop bend radius (legs sit at +/- r_loop up top)
+r_loop   = pk([6, 8, 8, 8]);         // top loop bend radius (legs sit at +/- r_loop up top)
 
 /* [Jaws] */
-jaw_lo   = 18;    // jaw bottom (Y)
-jaw_len  = 18;    // parallel serrated jaw length
-jg       = 2.0;   // jaw centerline offset from middle (small -> grips)
+jaw_lo   = pk([18, 22, 22, 22]);     // jaw bottom (Y)
+jaw_len  = pk([18, 56, 100, 144]);   // parallel serrated jaw length
+jg       = pk([2.0, 2.4, 2.4, 2.4]); // jaw centerline offset from middle (small -> grips)
 tooth_d  = 0.35;  // tooth bite
 tooth_p  = 1.8;   // tooth pitch
 
+/* [Maker's mark] */
+brand       = "imakethingsforu.com";
+brand_font  = "Liberation Sans:style=Bold";
+brand_depth = 0.4;           // slight recess into the outer face
+brand_min   = 3;             // if the whole mark fits the jaw at this size, keep it in one piece;
+                             // otherwise flow it down leg -> jaw -> foot
+
 $fn = 48;
+
+// ---- mark layout ----
+// Large and up: the whole mark fits the jaw face in one piece. Otherwise it flows down the
+// left side's outer contour, loop junction -> leg -> jaw -> foot tip, reading
+// top-to-bottom for a viewer facing the -x side.
+jaw_y1 = jaw_lo + jaw_len - 1.0;
+jaw_y0 = jaw_lo + 1.0;
+jaw_can = jaw_y1 - jaw_y0;
+mark_path = [[-r_loop, clip_h - r_loop], [-jg, jaw_lo + jaw_len], [-jg, jaw_lo], [-foot_w, 0]];
+mark_dead = [];
+
+smax        = bite * 0.45;
+single_size = fit1(brand, jaw_can, smax);
+single      = single_size >= brand_min;
+brand_size  = single ? single_size : path_text_size(mark_path, arm_t/2, brand, mark_dead, smax);
+
+echo(str(variant, ": ", 2*foot_w + arm_t, " x ", clip_h + arm_t, " x ", bite,
+         " mm; mark ", brand_size, " mm ", single ? "on the jaw" : "flowing leg -> jaw -> foot",
+         brand_size < brand_min ? "  (under 3 mm: use a 0.25 nozzle or expect rough letters)" : ""));
 
 function arc(c, r, a0, a1, n) =
   [ for (i=[0:n]) [ c[0]+r*cos(a0+(a1-a0)*i/n), c[1]+r*sin(a0+(a1-a0)*i/n) ] ];
@@ -53,4 +87,16 @@ module clip2d() {
   }
 }
 
-linear_extrude(bite) clip2d();
+module brand_cuts() {
+  if (brand != "") {
+    if (single)
+      engrave([-(jg + arm_t/2), (jaw_y0 + jaw_y1)/2, bite/2], [-1, 0, 0], brand, brand_size, brand_depth, brand_font);
+    else
+      engrave_path(mark_path, arm_t/2, brand, brand_size, brand_depth, brand_font, bite/2, mark_dead);
+  }
+}
+
+difference() {
+  linear_extrude(bite) clip2d();
+  brand_cuts();
+}
