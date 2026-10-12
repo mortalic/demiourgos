@@ -22,6 +22,8 @@ the large; bump `arm_t` if it feels loose.
 
 Every clip carries the full `imakethingsforu.com` recessed 0.4 mm into its
 broad outer face (Liberation Sans Bold; helpers in `bagclip_brand.scad`).
+The mark is cut as a uniform-thickness skin under the letter prisms, so a
+letter that wraps a corner keeps the same depth on both sides of the bend.
 The size is computed from the flat faces available:
 
 - large: one piece on the jaw face, ~3.9 mm; hairpin xl / xxl 6.75 mm.
@@ -33,6 +35,20 @@ The size is computed from the flat faces available:
   0.25 nozzle or expect rough letters.
 
 Set `brand = ""` to remove it.
+
+## Two-colour (MMU) letters
+
+Painting the recess floor in the slicer gives stringy, half-filled letters:
+the 0.4 mm recess is thinner than one extrusion width. For a multi-material
+print use `mmu/*_mmu.3mf` instead. Each is one object with two parts: the
+body on extruder 1 and the letters on extruder 2, a flush 0.9 mm (two
+perimeter) solid that replaces the recess. Open it in PrusaSlicer, assign
+filaments, slice. Suggested settings: 0.1 mm layers on the std clips,
+external perimeter width 0.4, Arachne with minimum perimeter width 50 %.
+
+The parts come from the same `.scad` files: `part = "body"` and
+`part = "letters"` (default `"all"` is the engraved single-colour clip).
+`make_mmu.py` regenerates all eight 3MFs from OpenSCAD.
 
 Print flat as modeled, no supports. The springs flex in-plane along the
 layers, so PLA is fine; PETG is more forgiving.

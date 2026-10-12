@@ -19,16 +19,18 @@ function sub(t, a, b) = b <= a ? "" : chr([for (i = [a : b - 1]) ord(t[i])]);
 function fit1(t, can, smax) = min(smax, (can - 2) / brand_w(t, 1));
 
 // ---------------------------------------------------------------------------
-// Engrave `txt` into a vertical face: f = face center (3D), n = outward unit normal
+// Letter prism on a vertical face: f = face center (3D), n = outward unit normal
 // in the xy plane. Reads left-to-right for a viewer standing outside the face,
-// letters upright along +z.
-module engrave(f, n, txt, size, depth, font) {
+// letters upright along +z. The prism starts `out` mm outside the face and runs
+// `depth` mm into it. Intersect with a skin of the part to get a letter solid of
+// uniform thickness that follows the surface around corners (see skin_mark below).
+module engrave(f, n, txt, size, depth, font, out = 0.01) {
     u = cross(-n, [0, 0, 1]);
-    multmatrix([[u[0], 0, -n[0], f[0] + n[0]*0.01],
-                [u[1], 0, -n[1], f[1] + n[1]*0.01],
+    multmatrix([[u[0], 0, -n[0], f[0] + n[0]*out],
+                [u[1], 0, -n[1], f[1] + n[1]*out],
                 [0,    1,  0,    f[2]],
                 [0,    0,  0,    1]])
-        linear_extrude(depth + 0.01)
+        linear_extrude(depth + out)
             text(txt, size = size, font = font, halign = "center", valign = "center", $fn = 24);
 }
 
@@ -69,7 +71,7 @@ function path_text_size(cl, d, txt, dead, smax, margin = 0.5) =
         e1 = _layout_end(txt, s1, dead, margin))
     e1 <= L - margin ? s1 : s1 * (L - 2*margin) / (e1 - margin) * 0.99;
 
-module engrave_path(cl, d, txt, size, depth, font, z, dead = [], margin = 0.5) {
+module engrave_path(cl, d, txt, size, depth, font, z, dead = [], margin = 0.5, out = 0.01) {
     q   = offset_right(cl, d);
     adv = _adv_list(txt, size);
     cs  = _layout(adv, dead, margin);
@@ -78,5 +80,22 @@ module engrave_path(cl, d, txt, size, depth, font, z, dead = [], margin = 0.5) {
                  cs[len(cs) - 1] + adv[len(adv) - 1] / 2 - (path_len(q) - margin), " mm"));
     for (i = [0 : len(txt) - 1])
         let(pt = path_at(q, cs[i]), p = pt[0], t = pt[1], n = [t[1], -t[0]])
-            engrave([p[0], p[1], z], [n[0], n[1], 0], txt[i], size, depth, font);
+            engrave([p[0], p[1], z], [n[0], n[1], 0], txt[i], size, depth, font, out);
+}
+
+// ---------------------------------------------------------------------------
+// Mark solid of uniform thickness `t`: the outer skin of the extruded 2D profile
+// (children(0), extruded to height h) where the letter prisms (children(1)) pass
+// through it. Subtract it from the part for an engraving, or print it as its own
+// part in a second colour. Because the prisms start outside the surface and the
+// skin follows the profile, letters that wrap a corner keep a constant depth on
+// both convex and concave bends.
+module skin_mark(h, t) {
+    intersection() {
+        difference() {
+            linear_extrude(h) children(0);
+            translate([0, 0, -1]) linear_extrude(h + 2) offset(r = -t) children(0);
+        }
+        children(1);
+    }
 }

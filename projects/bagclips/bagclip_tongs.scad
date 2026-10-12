@@ -39,7 +39,10 @@ tooth_p = 1.8;      // tooth pitch
 /* [Maker's mark] */
 brand       = "imakethingsforu.com";
 brand_font  = "Liberation Sans:style=Bold";
-brand_depth = 0.4;           // slight recess into the outer face
+brand_depth = 0.4;           // engraving depth (single-colour print)
+mmu_depth   = 0.9;           // letter thickness when exported as a separate part (two perimeters)
+part        = "all";         // all | body | letters -- body/letters: two-part MMU export, the
+                             // letters are a flush mmu_depth-thick solid for a second extruder
 brand_min   = 3;             // if the whole mark fits the jaw at this size, keep it in one piece;
                              // otherwise flow it around jaw -> rise -> handle
 
@@ -97,16 +100,24 @@ module clip2d() {
   }
 }
 
-module brand_cuts() {
+module prisms() {
   if (brand != "") {
     if (single)
-      engrave([(jaw_x0 + jaw_x1)/2, -(jc + arm_t/2), bite/2], [0, -1, 0], brand, brand_size, brand_depth, brand_font);
+      engrave([(jaw_x0 + jaw_x1)/2, -(jc + arm_t/2), bite/2], [0, -1, 0], brand, brand_size, mark_cut, brand_font, out = 2);
     else
-      engrave_path(mark_path, arm_t/2, brand, brand_size, brand_depth, brand_font, bite/2, mark_dead);
+      engrave_path(mark_path, arm_t/2, brand, brand_size, mark_cut, brand_font, bite/2, mark_dead, out = 2);
   }
 }
 
-difference() {
-  linear_extrude(bite) clip2d();
-  brand_cuts();
-}
+// the mark as a solid: a mark_depth-thick skin of the outer face under the letters
+mark_depth = part == "all" ? brand_depth : mmu_depth;
+mark_cut   = arm_t - mark_depth - 0.3;   // how far the prisms reach in (stay off the inner face)
+module mark() skin_mark(bite, mark_depth) { clip2d(); prisms(); }
+
+if (part == "letters")
+  mark();
+else
+  difference() {
+    linear_extrude(bite) clip2d();
+    mark();
+  }
