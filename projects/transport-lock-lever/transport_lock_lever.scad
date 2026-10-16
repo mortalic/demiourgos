@@ -15,7 +15,7 @@ pin_up   = 12;   // bottom edge to hole edge
 /* [Estimated from photos] */
 arm_depth = 9.5; // flange depth of the arm
 lean      = 8.5; // arm lean toward the web side, deg from the ear edge
-bend      = 32;  // grip lean toward the open side, deg from the ear edge
+bend      = 35;  // grip lean toward the open side, deg from the ear edge
 kink_h    = 55;  // height of the bend on the arm centreline
 tip_r     = 3;   // grip tip corner radius
 
@@ -24,8 +24,8 @@ pin_clear  = 0.3; // diametral clearance on the pin hole
 solid_from = 34;  // arm is solid above this height (>= total_h keeps the full open channel)
 step_r     = 1.5; // fillet in the ear/arm step corner
 kink_r     = 8;   // fillet inside the bend
-emboss     = true; // raised cartoon on the back face of the grip
-relief     = 0.6;  // emboss height
+cartoon    = true; // inset cartoon on the back face of the grip
+relief     = 0.6;  // inset depth
 template   = false; // true: 1.2 mm flat profile to hold against the original before the real print
 
 $fn = 64;
@@ -99,8 +99,9 @@ module cartoon_2d() {
     translate([0, 15]) scale([1, 1.05]) circle(r = 2.9);
 }
 
-module grip_emboss() {
-    o = K + n2 * (arm_depth / 2 - 0.5) + u2 * 6.5;
+// cutter: starts `relief` below the back face of the grip, pokes 0.5 out past it
+module grip_inset() {
+    o = K + n2 * (arm_depth / 2 - relief) + u2 * 6.5;
     multmatrix([[0, u2.x, n2.x, o.x],
                 [0, u2.y, n2.y, o.y],
                 [-1, 0,   0,    width / 2],
@@ -116,7 +117,7 @@ module template_plate() {
 }
 
 if (template) template_plate();
-else {
+else difference() {
     lever();
-    if (emboss) grip_emboss();
+    if (cartoon) grip_inset();
 }
