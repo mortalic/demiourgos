@@ -1,19 +1,21 @@
 // pursebase — parametric crochet / knit bag BASE PLATE with a perimeter ring of
 // holes you crochet the bag body up through. Modeled after common PU-leather
-// bases. Three stock sizes (cm): S 18x7, M 23x7.5, L 28x10.
+// bases. Four stock sizes (cm): S 18x7, M 23x7.5, L 28x10, XL 38x13.
 //
 // Prints flat on the bed, support-free (it's a perforated plate). Large flat
 // part -> use a brim and good adhesion to avoid warping, especially size L.
+// XL exceeds the Prusa XL's 360mm bed edge: place it rotated 45deg on the
+// plate (fits the diagonal even with a 5mm brim; auto-arrange won't do it).
 
 /* [Size] */
-size = "M";        // [S, M, L, custom]
+size = "M";        // [S, M, L, XL, custom]
 
 /* [Custom size — used only when size = custom] */
 cust_len = 230;    // length X (mm)
 cust_wid = 75;     // width  Y (mm)
 
 /* [Plate] */
-thickness   = 3.0;     // plate thickness (stiffness)
+thickness   = 0;       // plate thickness mm; 0 = stock (3 for S/M/L, 4 for XL)
 corner_frac = 0.20;    // outer corner radius as a fraction of width
 
 /* [Holes] */
@@ -25,8 +27,9 @@ hole_chamfer= 0.8;     // 45deg chamfer at each hole face (so it can't saw yarn)
 $fn = 48;
 
 // ---- size table (length X, width Y in mm) ----
-plate_len = size=="S" ? 180 : size=="M" ? 230 : size=="L" ? 280 : cust_len;
-plate_wid = size=="S" ?  70 : size=="M" ?  75 : size=="L" ? 100 : cust_wid;
+plate_len = size=="S" ? 180 : size=="M" ? 230 : size=="L" ? 280 : size=="XL" ? 380 : cust_len;
+plate_wid = size=="S" ?  70 : size=="M" ?  75 : size=="L" ? 100 : size=="XL" ? 130 : cust_wid;
+plate_thick = thickness > 0 ? thickness : size=="XL" ? 4 : 3;
 rc = min(plate_len, plate_wid) * corner_frac;   // outer corner radius
 
 // ---- inset rounded-rect path the hole centers sit on ----
@@ -58,21 +61,21 @@ module rrect(w, d, r) { offset(r) offset(-r) square([w, d], center=true); }
 
 // through hole + a 45deg chamfer at the top and bottom faces
 module hole_cutter() {
-  cylinder(d=hole_d, h=thickness+2, center=true);
-  translate([0,0, thickness/2 - hole_chamfer])
+  cylinder(d=hole_d, h=plate_thick+2, center=true);
+  translate([0,0, plate_thick/2 - hole_chamfer])
     cylinder(d1=hole_d, d2=hole_d+2*hole_chamfer, h=hole_chamfer+0.01);
-  translate([0,0,-thickness/2 - 0.01])
+  translate([0,0,-plate_thick/2 - 0.01])
     cylinder(d1=hole_d+2*hole_chamfer, d2=hole_d, h=hole_chamfer+0.01);
 }
 
 module pursebase() {
   difference() {
-    linear_extrude(thickness, center=true) rrect(plate_len, plate_wid, rc);
+    linear_extrude(plate_thick, center=true) rrect(plate_len, plate_wid, rc);
     for (i = [0:nholes-1])
       let(p = prr_point(i*perim/nholes))
         translate([p[0], p[1], 0]) hole_cutter();
   }
 }
 
-echo(size=size, plate_len=plate_len, plate_wid=plate_wid, holes=nholes, pitch=perim/nholes);
+echo(size=size, plate_len=plate_len, plate_wid=plate_wid, plate_thick=plate_thick, holes=nholes, pitch=perim/nholes);
 pursebase();

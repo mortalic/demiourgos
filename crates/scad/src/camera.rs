@@ -30,18 +30,23 @@ pub enum View {
 }
 
 impl View {
-    /// Object Euler rotation `(rot_x, rot_y, rot_z)` in degrees for this view.
+    /// Object Euler rotation `(rot_x, rot_y, rot_z)` in degrees for this view,
+    /// in the convention of the `--camera` CLI option.
     ///
-    /// These correspond to the angles OpenSCAD's GUI applies for its standard
-    /// view shortcuts.
+    /// Note: the CLI convention is NOT the GUI's internal `object_rot`. The GUI
+    /// applies `(90, 0, 0)` for Top, but the CLI/status-bar value is
+    /// `(90 - rx, -ry, -rz)`, so Top is `(0, 0, 0)` and Front is `(90, 0, 0)`
+    /// (the default iso `(55, 0, 25)` is the same in both). Verified against
+    /// OpenSCAD 2021.01 renders: `(90, 0, 90)` shows the +X face, `(90, 0, 270)`
+    /// the -X face.
     pub fn rotation(self) -> (f64, f64, f64) {
         match self {
-            View::Front => (0.0, 0.0, 0.0),
-            View::Back => (0.0, 0.0, 180.0),
-            View::Left => (0.0, 0.0, 90.0),
-            View::Right => (0.0, 0.0, 270.0),
-            View::Top => (90.0, 0.0, 0.0),
-            View::Bottom => (270.0, 0.0, 0.0),
+            View::Front => (90.0, 0.0, 0.0),
+            View::Back => (90.0, 0.0, 180.0),
+            View::Left => (90.0, 0.0, 270.0),
+            View::Right => (90.0, 0.0, 90.0),
+            View::Top => (0.0, 0.0, 0.0),
+            View::Bottom => (180.0, 0.0, 0.0),
             View::Iso => (55.0, 0.0, 25.0),
         }
     }
@@ -157,19 +162,19 @@ mod tests {
     fn camera_string_is_stable_and_clean() {
         assert_eq!(
             camera_string(View::Front, DEFAULT_DISTANCE),
-            "0,0,0,0,0,0,500"
+            "0,0,0,90,0,0,500"
         );
         assert_eq!(
             camera_string(View::Top, DEFAULT_DISTANCE),
-            "0,0,0,90,0,0,500"
+            "0,0,0,0,0,0,500"
         );
-        assert_eq!(camera_string(View::Back, 250.0), "0,0,0,0,0,180,250");
+        assert_eq!(camera_string(View::Back, 250.0), "0,0,0,90,0,180,250");
         assert_eq!(camera_string(View::Iso, 500.0), "0,0,0,55,0,25,500");
     }
 
     #[test]
     fn fractional_distance_is_preserved() {
-        assert_eq!(camera_string(View::Front, 12.5), "0,0,0,0,0,0,12.5");
+        assert_eq!(camera_string(View::Front, 12.5), "0,0,0,90,0,0,12.5");
     }
 
     #[test]
