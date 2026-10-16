@@ -151,13 +151,16 @@ rotations `(rot_x, rot_y, rot_z)`:
 
 | view | rotation |
 |------|----------|
-| front | (0, 0, 0) |
-| back | (0, 0, 180) |
-| left | (0, 0, 90) |
-| right | (0, 0, 270) |
-| top | (90, 0, 0) |
-| bottom | (270, 0, 0) |
+| front | (90, 0, 0) |
+| back | (90, 0, 180) |
+| left | (90, 0, 270) |
+| right | (90, 0, 90) |
+| top | (0, 0, 0) |
+| bottom | (180, 0, 0) |
 | iso | (55, 0, 25) |
+
+These are in the `--camera` CLI convention, which differs from the GUI's internal
+`object_rot` (CLI = `(90 - rx, -ry, -rz)`): a bare `(0, 0, 0)` is a TOP view.
 
 Renders pass `--camera=0,0,0,rx,ry,rz,500` together with `--viewall --autocenter`
 so the object is always framed; the rotation provides orientation, viewall
