@@ -16,6 +16,7 @@ Cargo.lock.bak
 projects/**/artifacts/
 projects/**/.demiourgos/
 projects/**/*.bgcode
+projects/**/*.csg
 
 # downloaded reference models (do not redistribute third-party STLs)
 projects/**/reference/*.stl
@@ -37,3 +38,6 @@ projects/**/*.avif
 
 # local reference-analysis wrappers (import git-ignored STLs)
 projects/**/ref_*.scad
+
+# aider local state
+.aider*

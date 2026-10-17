@@ -11,6 +11,33 @@ assistant writes SCAD, and Demiourgos gives it **eyes** (render), a **compiler**
 versus other OpenSCAD MCP servers is the measurement/analysis layer — not just
 rendering and export.
 
+## Two modes: USING demiourgos vs. DEVELOPING it
+
+This repo is both a Rust MCP server **and** a home for the objects designed with
+it (see `projects/` — bagclips, earbud-dock, teardrop-uke, …). Most of this file
+is about **developing the server**. But if you were asked to **make an object**
+("design a pot lid organizer", "make a bracket"), you are in the *other* mode:
+
+- You are **writing OpenSCAD input**, not modifying this repo's Rust/server code.
+  OpenSCAD is the compiler; a model is a program you write *for* it. You do not
+  read a compiler's source to write a program for it.
+- **Never read `crates/**` to make a model.** There is no "model-generation
+  function", ML backend, or inference server in here, and there should not be.
+  Files like `crates/scad/src/run.rs` and `ops.rs` only *invoke* OpenSCAD; making
+  an object needs zero knowledge of them. If you find yourself asking to see more
+  implementation files before you can design a part, stop — you already have
+  everything.
+- **Workflow (no MCP server / plain CLI, e.g. Aider):** write
+  `projects/<name>/<name>.scad`, then compile with
+  `openscad -o <name>.stl projects/<name>/<name>.scad`. A non-zero exit or a
+  `openscad --version` failure is a *real* blocker; "I need to see more code" is
+  not.
+- **Workflow (with the demiourgos MCP tools connected):** `write_model` →
+  `compile_check` → `render`/`measure` → `dfm_check`/`orientation_advisor` →
+  `export`. This is the loop the rest of this file supports.
+- **Pattern to copy:** `projects/bagclips/bagclip_tongs.scad` — a real object
+  authored exactly this way, no repo internals required.
+
 ## Workspace layout
 
 ```
