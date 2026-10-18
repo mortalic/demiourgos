@@ -14,6 +14,8 @@
 arm_ang = 5;      // arms swung out from straight-down-the-body, degrees
 leg_ang = 5;      // legs splayed out, degrees
 part = "all";     // all | torso | arms | legs  (single groups, for fit checks)
+sc = 1;           // size: scales the bones and layout; joint clearances, pins and thickness stay full size
+                  // 0.88 fits the first crank coffin box between its bosses (feet 29 mm from the centre toward the foot end)
 
 /* [Layers] */
 T = 5.6;          // total thickness
@@ -30,8 +32,8 @@ neck_r = 4.9;     // limb is full thickness beyond this radius from its pivot
 void_r = 5.4;     // torso's middle layers are cleared within this radius
 
 /* [Layout] */
-shoulder = [69, 17];
-hip = [30, 7];
+shoulder = [69, 17] * sc;
+hip = [30, 7] * sc;
 skull_c = [83, 0]; skull_r = 10;
 
 engrave_d = 0.6;
@@ -41,16 +43,19 @@ $fn = 48;
 module ribcage_2d() translate([57, 0]) scale([11, 13]) circle(r = 1);
 
 module torso_body_2d() {
-    polygon([[31.5, -9], [36, -11], [44, -9], [44, 9], [36, 11], [31.5, 9]]);   // pelvis (corners cut so the hip voids exit cleanly)
-    translate([43.5, -2.5]) square([3, 5]);                                    // lumbar spine
-    ribcage_2d();
-    hull() for (s = [-1, 1]) translate([shoulder.x, s * shoulder.y]) circle(r = 3.5);   // clavicle
-    translate([71, -3]) square([5, 6]);                                        // neck
-    translate(skull_c) circle(r = skull_r);                                    // skull
-    for (s = [-1, 1]) {                                                        // fork discs
+    scale(sc) torso_bones_2d();
+    for (s = [-1, 1]) {                                                        // fork discs (full size)
         translate([shoulder.x, s * shoulder.y]) circle(r = disc_r);
         translate([hip.x, s * hip.y]) circle(r = disc_r);
     }
+}
+module torso_bones_2d() {
+    polygon([[31.5, -9], [36, -11], [44, -9], [44, 9], [36, 11], [31.5, 9]]);   // pelvis (corners cut so the hip voids exit cleanly)
+    translate([43.5, -2.5]) square([3, 5]);                                    // lumbar spine
+    ribcage_2d();
+    hull() for (s = [-1, 1]) translate([69, s * 17]) circle(r = 3.5);           // clavicle
+    translate([71, -3]) square([5, 6]);                                        // neck
+    translate(skull_c) circle(r = skull_r);                                    // skull
 }
 module torso_holes_2d() {
     for (s = [-1, 1]) translate(skull_c + [2, s * 3.6]) circle(r = 2.6);               // eye sockets
@@ -87,12 +92,12 @@ module leg_2d() {
 // ---------------- 3D ----------------
 module limb(which) {
     // full-thickness bone beyond neck_r
-    linear_extrude(T) difference() { if (which == "arm") arm_2d(); else leg_2d(); circle(r = neck_r); }
+    linear_extrude(T) difference() { scale(sc) if (which == "arm") arm_2d(); else leg_2d(); circle(r = neck_r); }
     // middle-layer disc + neck, turning on the torso's pin
     translate([0, 0, mid0]) linear_extrude(mid1 - mid0) difference() {
         union() {
             circle(r = disc_r);
-            intersection() { if (which == "arm") arm_2d(); else leg_2d(); circle(r = neck_r + 1); }   // overlaps the full-thickness bone by 1 mm
+            intersection() { scale(sc) if (which == "arm") arm_2d(); else leg_2d(); circle(r = neck_r + 1); }   // overlaps the full-thickness bone by 1 mm
         }
         circle(r = hole_r);
     }
@@ -103,8 +108,8 @@ module torso() {
         linear_extrude(T) torso_body_2d();
         // clear the middle layers (and their gaps) around every pivot
         for (s = [-1, 1], p = [shoulder, hip]) translate([p.x, s * p.y, plate]) cylinder(r = void_r, h = T - 2 * plate);
-        translate([0, 0, -1]) linear_extrude(T + 2) torso_holes_2d();
-        translate([0, 0, T - engrave_d]) linear_extrude(1) torso_engrave_2d();
+        translate([0, 0, -1]) linear_extrude(T + 2) scale(sc) torso_holes_2d();
+        translate([0, 0, T - engrave_d]) linear_extrude(1) scale(sc) torso_engrave_2d();
     }
     for (s = [-1, 1], p = [shoulder, hip]) translate([p.x, s * p.y, 0]) cylinder(r = pin_r, h = T);   // pins
 }

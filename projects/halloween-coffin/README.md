@@ -129,3 +129,15 @@ the feet about 42 mm in from the foot end (`skel_in_coffin.scad`); it does not
 fit the automaton box, whose hip bosses and crank take that space.
 
 ![little skeleton](img/little_skeleton_in_coffin.png)
+
+### Sized for the first crank coffin
+
+`stl/little_skeleton_88.stl` is the same figure at 88% (`sc = 0.88`; the joint
+pins, gaps and thickness stay full size). It lies in the first version of the
+crank box (`coffin_v1.scad`, the box with hip bosses at ±18.5 mm and no crank
+parts installed) with 1.9 mm to spare: feet toward the foot end, about 27 mm
+from the centre, arms head-side of the hip bosses
+(`skel_in_coffin_v1.scad`). The current box has its hip bosses closer in, at
+±15.5 mm, so this placement is for the first box only.
+
+![in the first coffin](img/little_skeleton_in_first_coffin.png)
