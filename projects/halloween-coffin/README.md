@@ -113,3 +113,19 @@ reach a `use`d file, which is the whole trick.
 - Print on the XL in two colours (black box/cape, bone face), tune the hip and
   crank fits from the first print and record them as a profile.
 - Photos, a short video loop, assembly steps for the listing.
+
+## Little skeleton (separate figure)
+
+`little_skeleton.scad` → `stl/little_skeleton.stl`: a flat 93 × 46 × 5.6 mm
+skeleton that lies in a coffin. One print, no supports, no assembly: the
+shoulders and hips are print-in-place hinges. The torso owns a fork (bottom
+plate, top plate and a 3 mm pin); each limb's end is a disc in the middle layer
+turning on that pin, with 0.4 mm gaps above, below and around it. Twist each limb
+gently after printing to break the joints free. Use 0.2 mm layers.
+
+The arms swing from the print pose out to at least 40° and the legs to 30°
+with the 0.4 mm clearance intact. It fits a plain coffin of this outline with
+the feet about 42 mm in from the foot end (`skel_in_coffin.scad`); it does not
+fit the automaton box, whose hip bosses and crank take that space.
+
+![little skeleton](img/little_skeleton_in_coffin.png)
