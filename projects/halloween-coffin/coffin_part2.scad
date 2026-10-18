@@ -8,3 +8,4 @@ else if (which2 == "conrod") pos_conrod(al);
 else if (which2 == "crank") pos_crank(al);
 else if (which2 == "handle") pos_handle(al);
 else if (which2 == "pins") pos_pins(al);
+else if (which2 == "shaft") pos_shaft(al);
