@@ -1,9 +1,12 @@
-# Dracula Rises — crank automaton coffin
+# Rise and Shine — crank automaton coffin
 
 Entry for the Printables "Halloween 2026: Make It Move" flash contest
-(deadline 2026-11-01 23:59 UTC). A coffin candy box with a hand crank on the
-side: turn it and the vampire sits up and pushes the lid open, then lies back
-down and the lid falls shut. Status: **v1 designed, unprinted.**
+(deadline 2026-11-01 23:59 UTC). A coffin box with a hand crank on the side:
+turn it and the skeleton sits up and pushes the lid open, then lies back down
+and the lid falls shut. His arms hang on free shoulder pivots, so they droop to
+the coffin floor when he lies flat and swing as he rises; his legs are a
+drop-in false floor over the foot end that also hides the mechanism.
+Status: **v2 designed, unprinted.**
 
 ![open](img/assembly_open.png)
 
@@ -39,11 +42,13 @@ no filament or hardware is needed.
 |---|---|---|
 | `box` | floor down | hip bosses locate the torso in Y; crank bearing boss + outer pad; hinge knuckles with 45° roofs and ribs down the foot end |
 | `lid` | top up | centre knuckle, notches for the box knuckles, raised crescent moon (`moon_phase` = crescent \| quarter, `moon_rot`, `moon_bite`) |
-| `torso` | face down | rocker cheeks point up; engraved face is crisp against the bed |
+| `torso` | face down | skeleton: skull, clavicle, see-through ribcage, pelvis; rocker cheeks point up; engraved face/teeth/sternum are crisp against the bed |
+| `arm` | flat, **print 2** | bone arm with hand, free on a shoulder pin; pin head countersunk in the outboard face (flip one arm over) |
+| `legs` | flat | false floor for the foot end, rests on wall ledges at z 23.5; leg bones in 2 mm relief; drops in last and lifts out |
 | `conrod` | flat | 3.4 mm big end on the 3 mm crank stub, 3.5 mm small end; constant-width bar so it never sweeps into the crankshaft |
 | `crank` | web down | crank web with a press-fit D-bore and the 3 mm crank-pin stub standing up |
 | `handle` | flat | press-fit D-bore |
-| `pins` | heads down | hip 53.9 mm, fork 10.1 mm, lid 24 mm (3 mm, 6 mm heads) and the 24.5 mm crank shaft (5 mm D-pin, 8 mm head) |
+| `pins` | heads down | hip 53.9 mm, fork 10.1 mm, lid 24 mm, 2 × shoulder 11.8 mm (3 mm, 6 mm heads) and the 24.5 mm crank shaft (5 mm D-pin, 8 mm head) |
 
 Crank-side stack, from the wall inward: outer pad, wall, bearing boss, crank
 web, then the conrod on the web's stub, then the torso's fork. Nothing but the
@@ -51,8 +56,9 @@ stub sits in the conrod's plane, so the rod can swing across the shaft axis at
 crank 180° without hitting anything (the first layout had the rod between the
 web and the bearing, and `fit_check` at 180° caught it sweeping into the shaft).
 
-Pin holes: 3.5 mm where the pin turns (torso hip, conrod, lid knuckle), 3.25 mm
-where it should stay put (box walls, rocker cheeks, box knuckles). Printed holes
+Pin holes: 3.5 mm where the pin turns (torso hip, conrod, lid knuckle, arms),
+3.25 mm where it should stay put (box walls, rocker cheeks, box knuckles, the
+torso's shoulder bore). Printed holes
 come out small, so expect to ream or sand on the first print and then adjust
 `pin_slip` / `pin_grip`.
 
@@ -67,8 +73,15 @@ come out small, so expect to ream or sand on the first print and then adjust
 4. Slide the handle onto the crank shaft, then push the shaft in from outside
    through the pad, wall and bearing boss and press it into the web's D-bore,
    turning the web to line up the flat. The shaft head sits on the hub.
-5. Lid on, long pin through the three knuckles from the side opposite the crank;
+5. Arms: one on each side of the clavicle, hand toward the feet, countersink
+   outboard; short pin through each arm into the torso.
+6. Drop the legs plate onto the ledges at the foot end (sacrum toward the hip).
+7. Lid on, long pin through the three knuckles from the side opposite the crank;
    the lid is notched for its head.
+
+The arms need no stops: with the torso flat they rest on the floor at about
+45°, and from 7° of sit-up onward they hang straight down. They never swing
+forward of the body line under gravity, so the lid always closes.
 
 ## Clearances (checked with `fit_check` over the crank cycle)
 
@@ -83,7 +96,10 @@ come out small, so expect to ream or sand on the first print and then adjust
 | crank shaft ↔ bearing bore | 0.2 mm radial |
 | shaft ↔ web and handle D-bores | 0.05 mm press |
 | handle ↔ flared side wall | 0.5 mm at the knob |
-| lid ↔ head top (at rest) | 3.4 mm |
+| lid ↔ skull top (at rest) | 3.1 mm |
+| arms ↔ side walls / torso / floor | ≥ 0.5 mm over the cycle |
+| legs plate ↔ crank web (top of sweep) | 1.5 mm |
+| legs plate ↔ torso and cheeks | ≥ 2.9 mm over the cycle |
 
 `coffin_box.scad`, `coffin_part.scad` and `coffin_part2.scad` are wrappers so
 `fit_check` can pit the box against one positioned part (`which`, `al`) or two
@@ -92,8 +108,8 @@ reach a `use`d file, which is the whole trick.
 
 ## Todo before entry
 
-- Sculpt: a real vampire (cape, collar, widow's peak, two-tone pale face), coffin
-  lid bevel and plank lines, crank knob as a skull or bone.
+- Cosmetics: lid bevel and plank lines, crank knob as a skull or bone, maybe a
+  bone-white skeleton in a black box on the XL.
 - Print on the XL in two colours (black box/cape, bone face), tune the hip and
   crank fits from the first print and record them as a profile.
 - Photos, a short video loop, assembly steps for the listing.

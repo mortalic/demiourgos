@@ -9,3 +9,5 @@ else if (which == "crank") pos_crank(al);
 else if (which == "handle") pos_handle(al);
 else if (which == "pins") pos_pins(al);
 else if (which == "shaft") pos_shaft(al);
+else if (which == "arms") pos_arms(al);
+else if (which == "legs") pos_legs();
