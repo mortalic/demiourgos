@@ -64,6 +64,10 @@ come out small, so expect to ream or sand on the first print and then adjust
 
 ## Assembly
 
+Step-by-step instructions for the crank coffin on its own are in
+[ASSEMBLY.md](ASSEMBLY.md). The short version, including the optional arms and
+leg floor:
+
 1. Drop the torso in the box (cheeks toward the crank side), push the hip pin
    through from the side opposite the crank; its head seats in the countersink.
 2. Hook the conrod's big end over the crank web's stub and lower both into the
