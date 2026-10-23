@@ -84,12 +84,15 @@ module headstock() {
     difference() {
         // plate: top face on the pivot plane (local z=0), thickness downward,
         // starts 6mm before the nut so it welds into the fretboard.
+        // Three-section convex hull: quick flare from nut_w to head_knee_w,
+        // then a gentle taper out to head_w at the tip.
         hull() {
-            translate([0, -6,       -head_th]) linear_extrude(head_th) square([nut_w,  0.1], center=true);
-            translate([0, head_len, -head_th]) linear_extrude(head_th) square([head_w, 0.1], center=true);
+            translate([0, -6,          -head_th]) linear_extrude(head_th) square([nut_w,       0.1], center=true);
+            translate([0, head_knee_y, -head_th]) linear_extrude(head_th) square([head_knee_w, 0.1], center=true);
+            translate([0, head_len,    -head_th]) linear_extrude(head_th) square([head_w,      0.1], center=true);
         }
         for (sx = [-1, 1], sy = [0, 1])
-            translate([sx*(head_w*0.22 - sy*tuner_stagger), tuner_y0 + sy*tuner_pitch, -head_th - 1])
+            translate([sx*(tuner_x - sy*tuner_stagger), tuner_y0 + sy*tuner_pitch, -head_th - 1])
                 cylinder(h = head_th + 2, d = tuner_d);
     }
 }

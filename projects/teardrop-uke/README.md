@@ -20,6 +20,10 @@ that slide together at a tenon/mortise joint.
 - **Soprano**, 330.7 mm (13") scale; 12 frets, equal temperament
 - Nut width 35.6 mm; string action **0.5 mm @ 1st fret, 2.5 mm @ 12th**
 - Body 232 × 168 × 60 mm, ~2.6 mm walls; bridge 4-string @ 12 mm spacing
+- Tie-ledge tunnels are sized **per string** (`str_d` in `td_dims.scad`, bore = string + 0.6 mm)
+  so a double knot in the thin G/A strings can't pull through. String order is G C E A left to
+  right with the soundboard toward you and the headstock up (right-handed); reverse `str_d` for
+  a lefty. Re-enter your own gauges if your set differs (measured set: .024/.032/.034/.028 in).
 - Joint: rectangular tenon + mortise, **0.2 mm/side slip clearance** (Prusa XL / PLA default —
   the neck tenon carries the clearance, so the body prints as-is). Should slide together without
   sanding; glue to lock.

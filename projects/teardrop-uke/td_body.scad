@@ -16,7 +16,8 @@ module tube(p1, p2, d) {
 //    and a 45-deg wedge down the tail side (print-down is -y, ref used 38).
 //  - Tie ledge: a block 1.7 lower, separated by a strip of bare soundboard;
 //    flat top (no holes), vertical neck wall, 45-deg tail ramp. Per string a
-//    straight ~7-deg tunnel runs from a hole in the neck wall (the set you see
+//    straight ~7-deg tunnel (bore = string dia + tunnel_clear, per string)
+//    runs from a hole in the neck wall (the set you see
 //    from above, in the gap) out a hole low on the tail ramp (the underside
 //    set) - knot sits on the ramp, string wraps the ledge corner then breaks
 //    over the saddle.
@@ -53,11 +54,13 @@ module bridge() {
             B = [sx, wally, 5.2];            // mouth on the neck wall (top set)
             A = [sx, footy+3.6, 3.0];        // mouth on the 45-deg ramp (under set)
             u = (A-B)/norm(A-B);
-            tube(B - u*2, A + u*2, 1.8);
+            // per-string bore (see str_d in td_dims): the thin G/A knots pulled
+            // through the old one-size 1.8 tunnels
+            tube(B - u*2, A + u*2, tunnel_d(i));
             // string guide channel (like the nut slots): notch the neck wall +
-            // top corner, 0.9 deep (= tunnel radius, so the floor meets the
-            // mouth), so the wrap stays aligned with its tunnel
-            translate([sx - nut_slot_w/2, wally - 0.9, 5.0])
+            // top corner, tunnel-radius deep (so the floor meets the mouth),
+            // so the wrap stays aligned with its tunnel
+            translate([sx - nut_slot_w/2, wally - tunnel_d(i)/2, 5.0])
                 cube([nut_slot_w, 3, lt + 2 - 5.0]);
             // saddle string channel (like the nut slots): the floor crowns at
             // the neck face (y=0 = saddle_y) at exactly the string line z=crest,
